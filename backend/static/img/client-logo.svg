@@ -1,0 +1,7 @@
+<svg width="220" height="56" viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="220" height="56" rx="10" fill="#0B6E4F"/>
+  <circle cx="28" cy="28" r="12" fill="#DCEFE7"/>
+  <path d="M22 28L26 32L34 24" stroke="#0B6E4F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="50" y="24" font-family="Georgia, 'Times New Roman', serif" font-size="11" fill="#E8F5EF" letter-spacing="1">CLIENT</text>
+  <text x="50" y="39" font-family="Georgia, 'Times New Roman', serif" font-size="17" fill="#FFFFFF" font-weight="700">Brand Placeholder</text>
+</svg>

@@ -1,0 +1,14 @@
+<section class="top-banner" aria-label="Client banner">
+  <div class="banner-inner">
+    <div class="banner-copy">
+      <div class="banner-kicker">{{ branding.dashboard_kicker }}</div>
+      <div class="banner-title">{{ branding.banner_title }}</div>
+      <div class="banner-subtitle">Prepared for {{ branding.client_name }}</div>
+    </div>
+    <img
+      class="banner-logo"
+      src="{{ url_for('static', filename=branding.logo_image_path) }}"
+      alt="{{ branding.client_name }} logo"
+    >
+  </div>
+</section>

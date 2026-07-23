@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaign Performance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260723b') }}">
+</head>
+<body
+  style="--banner-start: {{ branding.banner_gradient_start }}; --banner-mid: {{ branding.banner_gradient_mid }}; --banner-end: {{ branding.banner_gradient_end }}; --font-primary: {{ branding.dashboard_font_family }}; --kpi-label-color: {{ branding.kpi_label_color }}; --kpi-value-color: {{ branding.kpi_value_color }}; --kpi-label-size: {{ branding.kpi_label_font_size }}; --kpi-value-size: {{ branding.kpi_value_font_size }};"
+>
+  <main class="container">
+    {% include "partials/_banner.html" %}
+    {% include "partials/_page_header.html" %}
+    {% include "partials/_filters.html" %}
+    {% include "partials/_kpi_grid.html" %}
+    {% include "partials/_top_campaigns_table.html" %}
+    {% include "partials/_footer.html" %}
+  </main>
+  <script src="{{ url_for('static', filename='js/dashboard.js', v='20260723b') }}"></script>
+</body>
+</html>

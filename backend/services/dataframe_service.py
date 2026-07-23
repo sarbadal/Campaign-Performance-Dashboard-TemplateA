@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+import time
+
+import pandas as pd
+
+from backend.services.db_service import ensure_sqlite_synced, get_sqlite_connection
+from backend.services.field_mapping_service import apply_field_mapping, load_field_mapping
+from backend.services.mysql_service import ensure_mysql_synced, get_mysql_connection
+
+
+_DF_CACHE: dict[str, object] = {
+    "expires_at": 0.0,
+    "backend": None,
+    "payload": None,
+}
+
+
+def _quote_mysql_ident(name: str) -> str:
+    return "`" + name.replace("`", "``") + "`"
+
+
+@dataclass
+class DataframeRequest:
+    data_file: Path
+    db_backend: str
+    sqlite_db_file: Path
+    mysql_config: dict[str, object]
+    field_mapping_file: Path
+    cache_ttl_seconds: int = 300
+
+
+def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
+    """Load campaign data into a reusable pandas DataFrame from configured DB backend."""
+    backend = (request.db_backend or "sqlite").strip().lower()
+
+    now = time.time()
+    cached = _DF_CACHE.get("payload")
+    expires_at = float(_DF_CACHE.get("expires_at", 0.0))
+    cached_backend = _DF_CACHE.get("backend")
+    if cached is not None and now < expires_at and cached_backend == backend:
+        return cached  # type: ignore[return-value]
+
+    if backend == "sqlite":
+        ensure_sqlite_synced(csv_file=request.data_file, db_file=request.sqlite_db_file)
+        with get_sqlite_connection(request.sqlite_db_file) as conn:
+            dataframe = pd.read_sql_query("SELECT * FROM campaign_data", conn)
+    elif backend == "mysql":
+        ensure_mysql_synced(csv_file=request.data_file, mysql_config=request.mysql_config)
+        table_name = str(request.mysql_config.get("table", "campaign_data"))
+        sql = f"SELECT * FROM {_quote_mysql_ident(table_name)}"
+        conn = get_mysql_connection(request.mysql_config)
+        try:
+            dataframe = pd.read_sql(sql, conn)
+        finally:
+            conn.close()
+    else:
+        raise ValueError(f"Unsupported DB_BACKEND: {backend}. Use 'sqlite' or 'mysql'.")
+
+    mapping = load_field_mapping(request.field_mapping_file)
+    dataframe = apply_field_mapping(dataframe, mapping)
+
+    _DF_CACHE["payload"] = dataframe
+    _DF_CACHE["backend"] = backend
+    _DF_CACHE["expires_at"] = now + max(request.cache_ttl_seconds, 1)
+    return dataframe

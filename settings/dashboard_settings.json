@@ -1,0 +1,41 @@
+{
+  "available_kpis": [
+    "total_spend",
+    "total_impressions",
+    "total_reach",
+    "total_clicks",
+    "total_conversions",
+    "total_leads",
+    "total_video_views",
+    "total_likes",
+    "total_video_completion",
+    "total_campaigns",
+    "avg_ctr_percent",
+    "avg_cpc",
+    "cpm",
+    "cvv"
+  ],
+  "selected_kpis": [
+    "total_spend",
+    "total_impressions",
+    "total_reach",
+    "total_clicks",
+    "total_leads",
+    "total_conversions",
+    "avg_ctr_percent",
+    "avg_cpc"
+  ],
+  "available_filter_fields": [
+    "objective",
+    "campaign_group",
+    "platform",
+    "campaign_name",
+    "adname",
+    "adset_name"
+  ],
+  "selected_filter_fields": [
+    "campaign_group",
+    "campaign_name",
+    "adset_name"
+  ]
+}

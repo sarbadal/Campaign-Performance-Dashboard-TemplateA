@@ -1,0 +1,37 @@
+<section class="panel filters-panel" aria-label="Dashboard filters">
+  <form method="get" class="filters-form">
+    <div class="filters-grid">
+      <label class="filter-field">
+        <span class="filter-label">Date From</span>
+        <input type="date" name="date_from" value="{{ filters.date_from }}">
+      </label>
+      <label class="filter-field">
+        <span class="filter-label">Date To</span>
+        <input type="date" name="date_to" value="{{ filters.date_to }}">
+      </label>
+      {% for field in active_filter_fields %}
+      <label class="filter-field">
+        <span class="filter-label">{{ field.label }}</span>
+        <details class="multi-dropdown">
+          <summary>
+            <span class="multi-summary-text">{{ (filters[field.key]|length ~ ' selected') if filters[field.key] else 'All' }}</span>
+          </summary>
+          <div class="multi-menu">
+            {% for item in filter_options[field.key] %}
+            <label class="multi-option">
+              <input type="checkbox" name="{{ field.key }}" value="{{ item }}" {% if item in filters[field.key] %}checked{% endif %}>
+              <span>{{ item }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="filters-actions">
+      <button type="submit" class="btn-apply">Apply Filters</button>
+      <a class="btn-clear" href="{{ url_for('dashboard.dashboard') }}">Clear</a>
+      <span class="filters-count">Showing {{ filtered_rows }} of {{ total_rows }} rows</span>
+    </div>
+  </form>
+</section>

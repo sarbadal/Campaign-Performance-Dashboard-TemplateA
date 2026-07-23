@@ -1,0 +1,219 @@
+from __future__ import annotations
+
+import pandas as pd
+from flask import Blueprint, current_app, render_template, request
+
+from backend.services.analytics_service import (
+    TOP_N_CAMPAIGNS,
+    TOP_N_PLATFORMS,
+    top_campaigns_by_spend,
+    top_platforms_by_spend,
+)
+from backend.services.dataframe_service import DataframeRequest, get_campaign_dataframe
+from backend.services.kpi_calculation_service import build_kpi_summary_from_dataframe
+from backend.services.kpi_service import KPI_DEFINITIONS, KpiCardsRequest, build_kpi_cards
+from backend.services.settings_service import load_selected_filter_fields, load_selected_kpis
+
+
+dashboard_bp = Blueprint("dashboard", __name__)
+
+FILTER_FIELD_DEFINITIONS: dict[str, dict[str, str]] = {
+    "objective": {"label": "Objective", "column": "OBJECTIVE"},
+    "campaign_group": {"label": "Campaign Group", "column": "CAMPAIGN_GROUP"},
+    "platform": {"label": "Platform", "column": "PLATFORM"},
+    "campaign_name": {"label": "Campaign", "column": "CAMPAIGN_NAME"},
+    "adname": {"label": "Ad Name", "column": "ADNAME"},
+    "adset_name": {"label": "Adset Name", "column": "ADSET_NAME"},
+}
+
+
+def _as_clean_str(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _column_options(df: pd.DataFrame, column: str) -> list[str]:
+    if column not in df.columns:
+        return []
+
+    values = df[column].fillna("").astype(str).str.strip()
+    values = values[values != ""]
+    if values.empty:
+        return []
+    return sorted(values.unique().tolist())
+
+
+def _date_input_defaults(df: pd.DataFrame) -> tuple[str, str]:
+    if "DATE" not in df.columns:
+        return "", ""
+
+    dates = pd.to_datetime(df["DATE"], errors="coerce").dropna()
+    if dates.empty:
+        return "", ""
+
+    return dates.min().strftime("%Y-%m-%d"), dates.max().strftime("%Y-%m-%d")
+
+
+def _clean_multi_values(values: list[str]) -> list[str]:
+    cleaned: list[str] = []
+    for item in values:
+        value = _as_clean_str(item)
+        if value and value not in cleaned:
+            cleaned.append(value)
+    return cleaned
+
+
+def _filter_dataframe(
+    df: pd.DataFrame,
+    active_filter_fields: list[dict[str, str]],
+) -> tuple[pd.DataFrame, dict[str, object], dict[str, list[str]]]:
+    requested_date_from = _as_clean_str(request.args.get("date_from", ""))
+    requested_date_to = _as_clean_str(request.args.get("date_to", ""))
+    default_date_from, default_date_to = _date_input_defaults(df)
+
+    filters = {
+        "date_from": requested_date_from or default_date_from,
+        "date_to": requested_date_to or default_date_to,
+    }
+
+    options: dict[str, list[str]] = {}
+    for field in active_filter_fields:
+        key = field["key"]
+        column = field["column"]
+        filters[key] = _clean_multi_values(request.args.getlist(key))
+        options[key] = _column_options(df, column)
+
+    filtered = df.copy()
+
+    if "DATE" in filtered.columns and (requested_date_from or requested_date_to):
+        parsed_dates = pd.to_datetime(filtered["DATE"], errors="coerce")
+
+        if requested_date_from:
+            start = pd.to_datetime(requested_date_from, errors="coerce")
+            if pd.notna(start):
+                filtered = filtered[parsed_dates >= start]
+                parsed_dates = parsed_dates[parsed_dates >= start]
+
+        if requested_date_to:
+            end = pd.to_datetime(requested_date_to, errors="coerce")
+            if pd.notna(end):
+                filtered = filtered[parsed_dates <= end]
+
+    for field in active_filter_fields:
+        key = field["key"]
+        column = field["column"]
+        selected_values = filters.get(key) or []
+        if not selected_values or column not in filtered.columns:
+            continue
+        chosen = set(selected_values)
+        series = filtered[column].fillna("").astype(str).str.strip()
+        filtered = filtered[series.isin(chosen)]
+
+    return filtered, filters, options
+
+
+@dashboard_bp.get("/")
+def dashboard():
+    data_file = current_app.config["DATA_FILE"]
+    db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
+    sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
+    mysql_config = {
+        "host": current_app.config.get("MYSQL_HOST", "127.0.0.1"),
+        "port": int(current_app.config.get("MYSQL_PORT", 3306)),
+        "user": current_app.config.get("MYSQL_USER", "root"),
+        "password": current_app.config.get("MYSQL_PASSWORD", ""),
+        "database": current_app.config.get("MYSQL_DATABASE", "campaign_performance"),
+        "table": current_app.config.get("MYSQL_TABLE", "campaign_data"),
+        "state_table": current_app.config.get("MYSQL_STATE_TABLE", "ingestion_state"),
+    }
+    settings_file = current_app.config["DASHBOARD_SETTINGS_FILE"]
+    field_mapping_file = current_app.config["FIELD_MAPPING_FILE"]
+    currency_symbol = str(current_app.config.get("KPI_CURRENCY_SYMBOL", "RM"))
+    cache_ttl_seconds = int(current_app.config.get("KPI_CACHE_TTL_SECONDS", 300))
+
+    df = get_campaign_dataframe(
+        DataframeRequest(
+            data_file=data_file,
+            db_backend=db_backend,
+            sqlite_db_file=sqlite_db_file,
+            mysql_config=mysql_config,
+            field_mapping_file=field_mapping_file,
+            cache_ttl_seconds=cache_ttl_seconds,
+        )
+    )
+    selected_filter_keys = load_selected_filter_fields(
+        settings_file=settings_file,
+        allowed_fields=list(FILTER_FIELD_DEFINITIONS.keys()),
+        max_filters=3,
+    )
+    active_filter_fields: list[dict[str, str]] = []
+    for key in selected_filter_keys:
+        definition = FILTER_FIELD_DEFINITIONS.get(key)
+        if definition is None:
+            continue
+        active_filter_fields.append(
+            {
+                "key": key,
+                "label": definition["label"],
+                "column": definition["column"],
+            }
+        )
+
+    filtered_df, filters, filter_options = _filter_dataframe(df, active_filter_fields)
+    summary = build_kpi_summary_from_dataframe(filtered_df)
+    selected_kpis = load_selected_kpis(settings_file)
+    kpi_cards = build_kpi_cards(
+        KpiCardsRequest(
+            summary=summary,
+            selected_keys=selected_kpis,
+            currency_symbol=currency_symbol,
+        )
+    )
+    top_campaigns = top_campaigns_by_spend(df=filtered_df, currency_symbol=currency_symbol)
+    top_platforms = top_platforms_by_spend(df=filtered_df, currency_symbol=currency_symbol)
+    top_platforms_max = max((float(row.get("amount_spent_value", 0.0)) for row in top_platforms), default=0.0)
+    branding = {
+        "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
+        "dashboard_kicker": current_app.config.get("DASHBOARD_KICKER", "Client Dashboard"),
+        "banner_title": current_app.config.get(
+            "DASHBOARD_BANNER_TITLE",
+            "Campaign Performance Executive Snapshot",
+        ),
+        "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
+        "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
+        "footer_right_text": current_app.config.get("FOOTER_RIGHT_TEXT", "Generated from data.csv"),
+        "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),
+        "banner_gradient_mid": current_app.config.get("BANNER_GRADIENT_MID", "#13795c"),
+        "banner_gradient_end": current_app.config.get("BANNER_GRADIENT_END", "#2e8f74"),
+        "dashboard_font_family": current_app.config.get(
+            "DASHBOARD_FONT_FAMILY",
+            '"Georgia", "Times New Roman", serif',
+        ),
+        "kpi_label_color": current_app.config.get("KPI_LABEL_COLOR", "#56605b"),
+        "kpi_value_color": current_app.config.get("KPI_VALUE_COLOR", "#0b6e4f"),
+        "kpi_label_font_size": current_app.config.get("KPI_LABEL_FONT_SIZE", "0.9rem"),
+        "kpi_value_font_size": current_app.config.get(
+            "KPI_VALUE_FONT_SIZE",
+            "1.8rem",
+        ),
+    }
+    return render_template(
+        "dashboard.html",
+        kpi=summary,
+        kpi_cards=kpi_cards,
+        top_campaigns=top_campaigns,
+        top_n_campaigns=TOP_N_CAMPAIGNS,
+        top_platforms=top_platforms,
+        top_n_platforms=TOP_N_PLATFORMS,
+        top_platforms_max=top_platforms_max,
+        filters=filters,
+        active_filter_fields=active_filter_fields,
+        filter_options=filter_options,
+        filtered_rows=int(filtered_df.shape[0]),
+        total_rows=int(df.shape[0]),
+        selected_kpis=selected_kpis,
+        kpi_options=KPI_DEFINITIONS,
+        settings_file=str(settings_file),
+        branding=branding,
+    )

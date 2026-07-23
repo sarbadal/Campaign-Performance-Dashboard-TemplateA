@@ -1,0 +1,8 @@
+<section class="kpi-grid">
+  {% for card in kpi_cards %}
+  <article class="card" data-kpi-key="{{ card.key }}">
+    <div class="label">{{ card.label }}</div>
+    <div class="value">{{ card.value }}</div>
+  </article>
+  {% endfor %}
+</section>
