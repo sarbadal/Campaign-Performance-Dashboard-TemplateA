@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Campaign Performance</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260723b') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260723e') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-layout.css', v='20260723e') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-item.css', v='20260723e') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-table.css', v='20260723e') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-chart.css', v='20260723e') }}">
 </head>
 <body
   style="--banner-start: {{ branding.banner_gradient_start }}; --banner-mid: {{ branding.banner_gradient_mid }}; --banner-end: {{ branding.banner_gradient_end }}; --font-primary: {{ branding.dashboard_font_family }}; --kpi-label-color: {{ branding.kpi_label_color }}; --kpi-value-color: {{ branding.kpi_value_color }}; --kpi-label-size: {{ branding.kpi_label_font_size }}; --kpi-value-size: {{ branding.kpi_value_font_size }};"
@@ -14,9 +18,11 @@
     {% include "partials/_page_header.html" %}
     {% include "partials/_filters.html" %}
     {% include "partials/_kpi_grid.html" %}
+    {% include "partials/_top_kpi_selector.html" %}
     {% include "partials/_top_campaigns_table.html" %}
     {% include "partials/_footer.html" %}
   </main>
-  <script src="{{ url_for('static', filename='js/dashboard.js', v='20260723b') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js', v='20260723c') }}"></script>
 </body>
 </html>

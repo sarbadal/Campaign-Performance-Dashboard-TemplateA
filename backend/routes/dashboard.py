@@ -4,10 +4,13 @@ import pandas as pd
 from flask import Blueprint, current_app, render_template, request
 
 from backend.services.analytics_service import (
+    DEFAULT_TOP_KPI_KEY,
     TOP_N_CAMPAIGNS,
+    TOP_KPI_KEYS,
     TOP_N_PLATFORMS,
-    top_campaigns_by_spend,
-    top_platforms_by_spend,
+    TopKpiRequest,
+    top_campaigns_by_kpi,
+    top_platforms_by_kpi,
 )
 from backend.services.dataframe_service import DataframeRequest, get_campaign_dataframe
 from backend.services.kpi_calculation_service import build_kpi_summary_from_dataframe
@@ -161,6 +164,10 @@ def dashboard():
         )
 
     filtered_df, filters, filter_options = _filter_dataframe(df, active_filter_fields)
+    requested_top_kpi = _as_clean_str(request.args.get("top_kpi", ""))
+    selected_top_kpi = requested_top_kpi if requested_top_kpi in TOP_KPI_KEYS else DEFAULT_TOP_KPI_KEY
+    filters["top_kpi"] = selected_top_kpi
+
     summary = build_kpi_summary_from_dataframe(filtered_df)
     selected_kpis = load_selected_kpis(settings_file)
     kpi_cards = build_kpi_cards(
@@ -170,9 +177,25 @@ def dashboard():
             currency_symbol=currency_symbol,
         )
     )
-    top_campaigns = top_campaigns_by_spend(df=filtered_df, currency_symbol=currency_symbol)
-    top_platforms = top_platforms_by_spend(df=filtered_df, currency_symbol=currency_symbol)
-    top_platforms_max = max((float(row.get("amount_spent_value", 0.0)) for row in top_platforms), default=0.0)
+    top_campaigns = top_campaigns_by_kpi(
+        TopKpiRequest(
+            df=filtered_df,
+            top_n=TOP_N_CAMPAIGNS,
+            kpi_key=selected_top_kpi,
+            currency_symbol=currency_symbol,
+        )
+    )
+    top_platforms = top_platforms_by_kpi(
+        TopKpiRequest(
+            df=filtered_df,
+            top_n=TOP_N_PLATFORMS,
+            kpi_key=selected_top_kpi,
+            currency_symbol=currency_symbol,
+        )
+    )
+    top_platforms_max = max((float(row.get("kpi_value", 0.0)) for row in top_platforms), default=0.0)
+    top_kpi_options = {key: KPI_DEFINITIONS[key] for key in TOP_KPI_KEYS if key in KPI_DEFINITIONS}
+    top_kpi_label = top_kpi_options.get(selected_top_kpi, KPI_DEFINITIONS.get(DEFAULT_TOP_KPI_KEY, "Spend"))
     branding = {
         "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
         "dashboard_kicker": current_app.config.get("DASHBOARD_KICKER", "Client Dashboard"),
@@ -207,6 +230,10 @@ def dashboard():
         top_platforms=top_platforms,
         top_n_platforms=TOP_N_PLATFORMS,
         top_platforms_max=top_platforms_max,
+        top_kpi_label=top_kpi_label,
+        top_kpi_options=top_kpi_options,
+        selected_top_kpi=selected_top_kpi,
+        top_kpi_currency_symbol=currency_symbol,
         filters=filters,
         active_filter_fields=active_filter_fields,
         filter_options=filter_options,

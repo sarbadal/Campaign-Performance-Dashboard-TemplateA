@@ -1,0 +1,10 @@
+.platform-chart-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 160px;
+}
+
+.platform-chart-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}

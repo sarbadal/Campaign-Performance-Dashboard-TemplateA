@@ -1,0 +1,34 @@
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.data-table th,
+.data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5ebe6;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  color: #42514b;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.data-table td:first-child,
+.data-table td:last-child {
+  white-space: nowrap;
+}
+
+.empty-state {
+  color: var(--muted);
+  font-size: 0.9rem;
+}

@@ -1,6 +1,6 @@
-<section class="insights-grid" aria-label="Spend insights">
-  <article class="panel" aria-label="Top campaigns by spend">
-    <div class="panel-header">Top {{ top_n_campaigns }} Campaigns by Spend</div>
+<section class="insights-grid" aria-label="KPI insights">
+  <article class="panel" aria-label="Top campaigns by selected KPI">
+    <div class="panel-header">Top {{ top_n_campaigns }} Campaigns by {{ top_kpi_label }}</div>
     {% if top_campaigns %}
     <div class="table-wrap">
       <table class="data-table">
@@ -8,7 +8,7 @@
           <tr>
             <th>Rank</th>
             <th>Campaign Name</th>
-            <th>Amount Spent</th>
+            <th>{{ top_kpi_label }}</th>
           </tr>
         </thead>
         <tbody>
@@ -16,37 +16,38 @@
           <tr>
             <td>{{ row.rank }}</td>
             <td>{{ row.campaign_name }}</td>
-            <td>{{ row.amount_spent }}</td>
+            <td>{{ row.kpi_display }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    <div class="empty-state">No campaign spend data available.</div>
+    <div class="empty-state">No campaign KPI data available.</div>
     {% endif %}
   </article>
 
-  <article class="panel" aria-label="Top platforms by spend">
-    <div class="panel-header">Top {{ top_n_platforms }} Platforms by Spend</div>
+  <article class="panel" aria-label="Top platforms by selected KPI">
+    <div class="panel-header">Top {{ top_n_platforms }} Platforms by {{ top_kpi_label }}</div>
     {% if top_platforms %}
-    <div class="bar-chart" role="img" aria-label="Horizontal bar chart of top platforms by spend">
-      {% for row in top_platforms %}
-      {% set width_pct = ((row.amount_spent_value / top_platforms_max) * 100) if top_platforms_max else 0 %}
-      <div class="bar-row">
-        <div class="bar-meta">
-          <span class="bar-rank">{{ row.rank }}.</span>
-          <span class="bar-label" title="{{ row.platform }}">{{ row.platform }}</span>
-        </div>
-        <div class="bar-track">
-          <div class="bar-fill" style="width: {{ '%.2f'|format(width_pct) }}%"></div>
-        </div>
-        <div class="bar-value">{{ row.amount_spent }}</div>
-      </div>
-      {% endfor %}
+    {% set row_count = top_platforms|length %}
+    <div class="platform-chart-wrap">
+      <canvas
+        id="top-platforms-chart"
+        class="platform-chart-canvas"
+        role="img"
+        aria-label="Horizontal bar chart of top platforms by selected KPI"
+        data-row-count="{{ row_count }}"
+        data-kpi-key="{{ selected_top_kpi }}"
+        data-kpi-label="{{ top_kpi_label }}"
+        data-currency-symbol="{{ top_kpi_currency_symbol }}"
+        data-labels='{{ top_platforms | map(attribute="platform") | list | tojson }}'
+        data-values='{{ top_platforms | map(attribute="kpi_value") | list | tojson }}'
+        data-display-values='{{ top_platforms | map(attribute="kpi_display") | list | tojson }}'
+      ></canvas>
     </div>
     {% else %}
-    <div class="empty-state">No platform spend data available.</div>
+    <div class="empty-state">No platform KPI data available.</div>
     {% endif %}
   </article>
 </section>

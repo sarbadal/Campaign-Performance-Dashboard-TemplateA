@@ -4,5 +4,8 @@ __pycache__/
 .env
 .DS_Store
 
+*.db-shm
+*.db-wal
+
 data/data.xlsx
 data/data.csv

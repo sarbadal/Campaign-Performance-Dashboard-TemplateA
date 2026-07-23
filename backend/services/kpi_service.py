@@ -8,7 +8,7 @@ from backend.services.kpi_calculation_service import KpiSummary, build_kpi_summa
 
 
 KPI_DEFINITIONS: dict[str, str] = {
-    "total_spend": "Total Spend",
+    "total_spend": "Spend",
     "total_impressions": "Impressions",
     "total_reach": "Reach",
     "total_clicks": "Clicks",
@@ -19,7 +19,7 @@ KPI_DEFINITIONS: dict[str, str] = {
     "total_video_completion": "Video Completion",
     "total_campaigns": "Unique Campaigns",
     "avg_ctr_percent": "CTR",
-    "avg_cpc": "Average CPC",
+    "avg_cpc": "CPC",
     "cpm": "CPM",
     "cvv": "CVV",
 }
