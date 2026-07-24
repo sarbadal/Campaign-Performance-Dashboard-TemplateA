@@ -6,8 +6,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 
-TOP_N_CAMPAIGNS = 3
-TOP_N_PLATFORMS = 10
+TOP_N_PLATFORMS = 6
 CURRENCY_SYMBOL = os.getenv("KPI_CURRENCY_SYMBOL", "RM").strip()
 DEFAULT_TOP_KPI_KEY = "total_spend"
 TOP_KPI_KEYS = [
@@ -41,14 +40,6 @@ TopEntityRow = dict[str, str | float]
 
 
 @dataclass(frozen=True)
-class TopKpiRequest:
-    df: pd.DataFrame
-    top_n: int
-    kpi_key: str = DEFAULT_TOP_KPI_KEY
-    currency_symbol: str = CURRENCY_SYMBOL
-
-
-@dataclass(frozen=True)
 class TopEntityKpiRequest:
     df: pd.DataFrame
     entity_column: str
@@ -56,6 +47,13 @@ class TopEntityKpiRequest:
     top_n: int
     kpi_key: str = DEFAULT_TOP_KPI_KEY
     currency_symbol: str = CURRENCY_SYMBOL
+
+
+@dataclass(frozen=True)
+class DualAxisKpiSeriesRequest:
+    df: pd.DataFrame
+    left_kpi_key: str
+    right_kpi_key: str
 
 
 def _numeric_column_series(df: pd.DataFrame, column: str) -> pd.Series:
@@ -140,25 +138,59 @@ def _top_entities_by_kpi(request: TopEntityKpiRequest) -> list[TopEntityRow]:
     return rows
 
 
-def top_campaigns_by_kpi(request: TopKpiRequest) -> list[TopEntityRow]:
-    """Return top campaigns by selected KPI from a shared DataFrame."""
-    return _top_entities_by_kpi(TopEntityKpiRequest(
-        df=request.df,
-        entity_column="CAMPAIGN_NAME",
-        entity_key="campaign_name",
-        top_n=request.top_n,
-        kpi_key=request.kpi_key,
-        currency_symbol=request.currency_symbol,
-    ))
+def top_entities_by_kpi(request: TopEntityKpiRequest) -> list[TopEntityRow]:
+    """Return top entities by selected KPI from a shared DataFrame."""
+    return _top_entities_by_kpi(request)
 
 
-def top_platforms_by_kpi(request: TopKpiRequest) -> list[TopEntityRow]:
-    """Return top platforms by selected KPI from a shared DataFrame."""
-    return _top_entities_by_kpi(TopEntityKpiRequest(
-        df=request.df,
-        entity_column="PLATFORM",
-        entity_key="platform",
-        top_n=request.top_n,
-        kpi_key=request.kpi_key,
-        currency_symbol=request.currency_symbol,
-    ))
+def dual_axis_kpi_series(request: DualAxisKpiSeriesRequest) -> dict[str, list[float | str]]:
+    """Return date-aligned KPI series for a dual-axis line chart."""
+    if "DATE" not in request.df.columns:
+        return {
+            "labels": [],
+            "left_values": [],
+            "right_values": [],
+        }
+
+    left_kpi_key = _resolve_top_kpi_key(request.left_kpi_key)
+    right_kpi_key = _resolve_top_kpi_key(request.right_kpi_key)
+
+    working = pd.DataFrame({
+        "DATE": pd.to_datetime(request.df["DATE"], errors="coerce"),
+        "AMOUNT_SPENT": _numeric_column_series(request.df, "AMOUNT_SPENT"),
+        "IMPRESSIONS": _numeric_column_series(request.df, "IMPRESSIONS"),
+        "CLICKS": _numeric_column_series(request.df, "CLICKS"),
+        "VIDEO_VIEWS": _numeric_column_series(request.df, "VIDEO_VIEWS"),
+        "REACH": _numeric_column_series(request.df, "REACH"),
+        "CONVERSIONS": _numeric_column_series(request.df, "CONVERSIONS"),
+        "LEADS": _numeric_column_series(request.df, "LEADS"),
+        "LIKES": _numeric_column_series(request.df, "LIKES"),
+        "VIDEO_COMPLETION": _numeric_column_series(request.df, "VIDEO_COMPLETION"),
+    }).dropna(subset=["DATE"])
+
+    if working.empty:
+        return {
+            "labels": [],
+            "left_values": [],
+            "right_values": [],
+        }
+
+    grouped = (
+        working
+        .groupby(working["DATE"].dt.date, as_index=False)
+        .sum(numeric_only=True)
+        .sort_values("DATE")
+    )
+
+    left_series = _kpi_value_for_grouped(grouped, left_kpi_key).astype("float64").fillna(0.0)
+    right_series = _kpi_value_for_grouped(grouped, right_kpi_key).astype("float64").fillna(0.0)
+
+    labels = [str(value) for value in grouped["DATE"].tolist()]
+    left_values = [float(value) for value in left_series.tolist()]
+    right_values = [float(value) for value in right_series.tolist()]
+
+    return {
+        "labels": labels,
+        "left_values": left_values,
+        "right_values": right_values,
+    }

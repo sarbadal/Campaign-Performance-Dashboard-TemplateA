@@ -10,13 +10,14 @@
         <input type="date" name="date_to" value="{{ filters.date_to }}">
       </label>
       {% for field in active_filter_fields %}
-      <label class="filter-field">
+      <div class="filter-field">
         <span class="filter-label">{{ field.label }}</span>
         <details class="multi-dropdown">
           <summary>
             <span class="multi-summary-text">{{ (filters[field.key]|length ~ ' selected') if filters[field.key] else 'All' }}</span>
           </summary>
           <div class="multi-menu">
+            <button type="button" class="multi-clear-filter" data-clear-filter="{{ field.key }}">Clear this filter</button>
             {% for item in filter_options[field.key] %}
             <label class="multi-option">
               <input type="checkbox" name="{{ field.key }}" value="{{ item }}" {% if item in filters[field.key] %}checked{% endif %}>
@@ -25,7 +26,7 @@
             {% endfor %}
           </div>
         </details>
-      </label>
+      </div>
       {% endfor %}
     </div>
     <div class="filters-actions">

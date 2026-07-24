@@ -4,18 +4,25 @@ import pandas as pd
 from flask import Blueprint, current_app, render_template, request
 
 from backend.services.analytics_service import (
+    DualAxisKpiSeriesRequest,
     DEFAULT_TOP_KPI_KEY,
-    TOP_N_CAMPAIGNS,
-    TOP_KPI_KEYS,
     TOP_N_PLATFORMS,
-    TopKpiRequest,
-    top_campaigns_by_kpi,
-    top_platforms_by_kpi,
+    TOP_KPI_KEYS,
+    TopEntityKpiRequest,
+    dual_axis_kpi_series,
+    top_entities_by_kpi,
 )
 from backend.services.dataframe_service import DataframeRequest, get_campaign_dataframe
 from backend.services.kpi_calculation_service import build_kpi_summary_from_dataframe
 from backend.services.kpi_service import KPI_DEFINITIONS, KpiCardsRequest, build_kpi_cards
-from backend.services.settings_service import load_selected_filter_fields, load_selected_kpis
+from backend.services.settings_service import (
+    load_platform_chart_colors,
+    load_selected_filter_fields,
+    load_selected_kpis,
+    load_selected_top_entity_charts,
+    load_top_entity_chart_default_color,
+    load_top_entity_chart_colors,
+)
 
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -25,8 +32,16 @@ FILTER_FIELD_DEFINITIONS: dict[str, dict[str, str]] = {
     "campaign_group": {"label": "Campaign Group", "column": "CAMPAIGN_GROUP"},
     "platform": {"label": "Platform", "column": "PLATFORM"},
     "campaign_name": {"label": "Campaign", "column": "CAMPAIGN_NAME"},
-    "adname": {"label": "Ad Name", "column": "ADNAME"},
+    "adname": {"label": "Ad Name", "column": "AD_NAME"},
     "adset_name": {"label": "Adset Name", "column": "ADSET_NAME"},
+}
+
+TOP_ENTITY_CHART_DEFINITIONS: dict[str, dict[str, str]] = {
+    "platform": {"label_plural": "Platforms", "column": "PLATFORM"},
+    "campaign_name": {"label_plural": "Campaign Names", "column": "CAMPAIGN_NAME"},
+    "campaign_group": {"label_plural": "Campaign Groups", "column": "CAMPAIGN_GROUP"},
+    "adname": {"label_plural": "Ad Names", "column": "AD_NAME"},
+    "adset_name": {"label_plural": "Adset Names", "column": "ADSET_NAME"},
 }
 
 
@@ -167,9 +182,28 @@ def dashboard():
     requested_top_kpi = _as_clean_str(request.args.get("top_kpi", ""))
     selected_top_kpi = requested_top_kpi if requested_top_kpi in TOP_KPI_KEYS else DEFAULT_TOP_KPI_KEY
     filters["top_kpi"] = selected_top_kpi
+    requested_line_kpi_left = _as_clean_str(request.args.get("line_kpi_left", ""))
+    requested_line_kpi_right = _as_clean_str(request.args.get("line_kpi_right", ""))
+    selected_line_kpi_left = requested_line_kpi_left if requested_line_kpi_left in TOP_KPI_KEYS else "total_spend"
+    selected_line_kpi_right = (
+        requested_line_kpi_right if requested_line_kpi_right in TOP_KPI_KEYS else "total_impressions"
+    )
+    if selected_line_kpi_right == selected_line_kpi_left:
+        selected_line_kpi_right = "total_clicks" if selected_line_kpi_left != "total_clicks" else "total_reach"
+
+    filters["line_kpi_left"] = selected_line_kpi_left
+    filters["line_kpi_right"] = selected_line_kpi_right
 
     summary = build_kpi_summary_from_dataframe(filtered_df)
     selected_kpis = load_selected_kpis(settings_file)
+    platform_chart_colors = load_platform_chart_colors(settings_file)
+    top_entity_chart_colors = load_top_entity_chart_colors(settings_file)
+    top_entity_chart_default_color = load_top_entity_chart_default_color(settings_file)
+    selected_top_entity_chart_keys = load_selected_top_entity_charts(
+        settings_file=settings_file,
+        allowed_chart_keys=list(TOP_ENTITY_CHART_DEFINITIONS.keys()),
+        max_charts=2,
+    )
     kpi_cards = build_kpi_cards(
         KpiCardsRequest(
             summary=summary,
@@ -177,25 +211,45 @@ def dashboard():
             currency_symbol=currency_symbol,
         )
     )
-    top_campaigns = top_campaigns_by_kpi(
-        TopKpiRequest(
-            df=filtered_df,
-            top_n=TOP_N_CAMPAIGNS,
-            kpi_key=selected_top_kpi,
-            currency_symbol=currency_symbol,
+
+    top_entity_charts: list[dict[str, object]] = []
+    for chart_key in selected_top_entity_chart_keys:
+        definition = TOP_ENTITY_CHART_DEFINITIONS.get(chart_key)
+        if definition is None:
+            continue
+
+        rows = top_entities_by_kpi(
+            TopEntityKpiRequest(
+                df=filtered_df,
+                entity_column=definition["column"],
+                entity_key="entity",
+                top_n=TOP_N_PLATFORMS,
+                kpi_key=selected_top_kpi,
+                currency_symbol=currency_symbol,
+            )
         )
-    )
-    top_platforms = top_platforms_by_kpi(
-        TopKpiRequest(
-            df=filtered_df,
-            top_n=TOP_N_PLATFORMS,
-            kpi_key=selected_top_kpi,
-            currency_symbol=currency_symbol,
+
+        top_entity_charts.append(
+            {
+                "key": chart_key,
+                "label_plural": definition["label_plural"],
+                "rows": rows,
+                "colors": top_entity_chart_colors.get(
+                    chart_key,
+                    platform_chart_colors if chart_key == "platform" else {},
+                ),
+                "default_color": top_entity_chart_default_color,
+            }
         )
-    )
-    top_platforms_max = max((float(row.get("kpi_value", 0.0)) for row in top_platforms), default=0.0)
     top_kpi_options = {key: KPI_DEFINITIONS[key] for key in TOP_KPI_KEYS if key in KPI_DEFINITIONS}
     top_kpi_label = top_kpi_options.get(selected_top_kpi, KPI_DEFINITIONS.get(DEFAULT_TOP_KPI_KEY, "Spend"))
+    dual_axis_series = dual_axis_kpi_series(
+        DualAxisKpiSeriesRequest(
+            df=filtered_df,
+            left_kpi_key=selected_line_kpi_left,
+            right_kpi_key=selected_line_kpi_right,
+        )
+    )
     branding = {
         "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
         "dashboard_kicker": current_app.config.get("DASHBOARD_KICKER", "Client Dashboard"),
@@ -225,15 +279,16 @@ def dashboard():
         "dashboard.html",
         kpi=summary,
         kpi_cards=kpi_cards,
-        top_campaigns=top_campaigns,
-        top_n_campaigns=TOP_N_CAMPAIGNS,
-        top_platforms=top_platforms,
-        top_n_platforms=TOP_N_PLATFORMS,
-        top_platforms_max=top_platforms_max,
+        top_entity_charts=top_entity_charts,
+        top_n_entities=TOP_N_PLATFORMS,
         top_kpi_label=top_kpi_label,
         top_kpi_options=top_kpi_options,
         selected_top_kpi=selected_top_kpi,
+        selected_line_kpi_left=selected_line_kpi_left,
+        selected_line_kpi_right=selected_line_kpi_right,
+        dual_axis_series=dual_axis_series,
         top_kpi_currency_symbol=currency_symbol,
+        platform_chart_colors=platform_chart_colors,
         filters=filters,
         active_filter_fields=active_filter_fields,
         filter_options=filter_options,

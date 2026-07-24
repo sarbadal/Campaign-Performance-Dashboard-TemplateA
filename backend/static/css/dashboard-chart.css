@@ -1,10 +1,38 @@
-.platform-chart-wrap {
+.top-entity-chart-wrap {
   position: relative;
   width: 100%;
   min-height: 160px;
 }
 
-.platform-chart-canvas {
+.top-entity-chart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.dual-axis-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dual-axis-form .filter-field {
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+
+.dual-axis-form .btn-apply {
+  align-self: end;
+}
+
+.dual-axis-chart-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 320px;
+}
+
+.dual-axis-chart {
   width: 100% !important;
   height: 100% !important;
 }

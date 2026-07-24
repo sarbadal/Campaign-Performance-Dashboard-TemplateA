@@ -22,6 +22,138 @@ DEFAULT_SELECTED_FILTER_FIELDS = [
     "platform",
 ]
 
+DEFAULT_SELECTED_TOP_ENTITY_CHARTS = [
+    "platform",
+    "campaign_name",
+]
+
+
+def load_platform_chart_colors(settings_file: Path) -> dict[str, str]:
+    """Load optional platform color mapping for Top Platforms chart.
+
+    Expected JSON shape:
+      {
+        "platform_chart_colors": {
+          "Facebook": "#1877F2",
+          "Instagram": "#E4405F"
+        }
+      }
+    """
+    if not settings_file.exists():
+        return {}
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    raw = payload.get("platform_chart_colors")
+    if not isinstance(raw, dict):
+        return {}
+
+    colors: dict[str, str] = {}
+    for key, value in raw.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            continue
+        platform = key.strip()
+        color = value.strip()
+        if not platform or not color:
+            continue
+        colors[platform] = color
+
+    return colors
+
+
+def load_top_entity_chart_colors(settings_file: Path) -> dict[str, dict[str, str]]:
+    """Load optional per-entity color mappings for top-entity charts.
+
+    Expected JSON shape:
+      {
+        "top_entity_chart_colors": {
+          "platform": {
+            "Meta": "#1877F2"
+          },
+          "campaign_group": {
+            "Brand": "#EF6C00"
+          }
+        }
+      }
+
+    Backward compatibility:
+      - If "platform_chart_colors" is present, it is used as the
+        "platform" entry when top_entity_chart_colors.platform is missing.
+    """
+    if not settings_file.exists():
+        return {}
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    result: dict[str, dict[str, str]] = {}
+
+    raw = payload.get("top_entity_chart_colors")
+    if isinstance(raw, dict):
+        for entity_key, entity_colors in raw.items():
+            if not isinstance(entity_key, str) or not isinstance(entity_colors, dict):
+                continue
+            cleaned_entity_key = entity_key.strip()
+            if not cleaned_entity_key:
+                continue
+
+            cleaned_colors: dict[str, str] = {}
+            for item_key, item_color in entity_colors.items():
+                if not isinstance(item_key, str) or not isinstance(item_color, str):
+                    continue
+                key = item_key.strip()
+                color = item_color.strip()
+                if not key or not color:
+                    continue
+                cleaned_colors[key] = color
+
+            if cleaned_colors:
+                result[cleaned_entity_key] = cleaned_colors
+
+    legacy_platform = payload.get("platform_chart_colors")
+    if "platform" not in result and isinstance(legacy_platform, dict):
+        cleaned_legacy: dict[str, str] = {}
+        for item_key, item_color in legacy_platform.items():
+            if not isinstance(item_key, str) or not isinstance(item_color, str):
+                continue
+            key = item_key.strip()
+            color = item_color.strip()
+            if not key or not color:
+                continue
+            cleaned_legacy[key] = color
+        if cleaned_legacy:
+            result["platform"] = cleaned_legacy
+
+    return result
+
+
+def load_top_entity_chart_default_color(settings_file: Path) -> str:
+    """Load optional default bar color for top-entity charts.
+
+    Expected JSON shape:
+      {
+        "top_entity_chart_default_color": "#0b6e4f"
+      }
+    """
+    if not settings_file.exists():
+        return ""
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return ""
+
+    raw = payload.get("top_entity_chart_default_color")
+    if not isinstance(raw, str):
+        return ""
+
+    return raw.strip()
+
 
 def load_selected_kpis(settings_file: Path) -> list[str]:
     """Load selected KPI keys from JSON settings file."""
@@ -118,3 +250,66 @@ def load_selected_filter_fields(settings_file: Path, allowed_fields: list[str], 
         return selected
 
     return [key for key in fallback if key in available][:max(max_filters, 1)]
+
+
+def load_selected_top_entity_charts(
+    settings_file: Path,
+    allowed_chart_keys: list[str],
+    max_charts: int = 2,
+) -> list[str]:
+    """Load selected top-entity chart keys from JSON settings file."""
+    if not allowed_chart_keys:
+        return []
+
+    allowed: list[str] = []
+    for item in allowed_chart_keys:
+        key = str(item).strip()
+        if key and key not in allowed:
+            allowed.append(key)
+
+    fallback = [key for key in DEFAULT_SELECTED_TOP_ENTITY_CHARTS if key in allowed]
+    if not fallback:
+        fallback = allowed[:max(max_charts, 1)]
+
+    if not settings_file.exists():
+        return fallback[:max(max_charts, 1)]
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return fallback[:max(max_charts, 1)]
+
+    available_raw = payload.get("available_top_entity_charts")
+    available = set(allowed)
+    if isinstance(available_raw, list):
+        configured_available: set[str] = set()
+        for item in available_raw:
+            if not isinstance(item, str):
+                continue
+            key = item.strip()
+            if key in available:
+                configured_available.add(key)
+        if configured_available:
+            available = configured_available
+
+    selected_raw = payload.get("selected_top_entity_charts")
+    if not isinstance(selected_raw, list):
+        return [key for key in fallback if key in available][:max(max_charts, 1)]
+
+    selected: list[str] = []
+    for item in selected_raw:
+        if not isinstance(item, str):
+            continue
+        key = item.strip()
+        if not key or key in selected:
+            continue
+        if key not in available:
+            continue
+        selected.append(key)
+        if len(selected) >= max(max_charts, 1):
+            break
+
+    if selected:
+        return selected
+
+    return [key for key in fallback if key in available][:max(max_charts, 1)]

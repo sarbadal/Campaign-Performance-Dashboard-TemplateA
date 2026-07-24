@@ -37,5 +37,51 @@
     "campaign_group",
     "campaign_name",
     "adset_name"
-  ]
+  ],
+  "available_top_entity_charts": [
+    "platform",
+    "campaign_name",
+    "campaign_group",
+    "adname",
+    "adset_name"
+  ],
+  "selected_top_entity_charts": [
+    "adset_name",
+    "adname"
+  ],
+  "dual_axis_line_colors": {
+    "left": "#0b6e4f",
+    "right": "#d97706",
+    "kpi_colors": {
+      "total_spend": "#2563eb",
+      "total_impressions": "#ea580c",
+      "total_clicks": "#0891b2",
+      "total_reach": "#7c3aed"
+    }
+  },
+  "top_entity_chart_default_color": "#7703fc",
+  "top_entity_chart_colors": {
+    "platform": {
+      "Meta": "#fc4e03",
+      "Tiktok": "#fc8003",
+      "Google Ads": "#fcbe03"
+    },
+    "adname": {
+      "CNY Main Film_CN_Video_08m59s": "#facc15",
+      "Ad B": "#22c55e"
+    },
+    "adset_name": {
+      "FBIG_MY_18-65_All Lang_Generic Interest": "#3b82f6",
+      "Adset B": "#22c55e"
+    },
+    "campaign_group": {
+      "Prospecting": "#a855f7",
+      "Retargeting": "#f97316"
+    }
+  },
+  "platform_chart_colors": {
+    "Meta": "#fc4e03",
+    "Tiktok": "#fc8003",
+    "Google Ads": "#fcbe03"
+  }
 }

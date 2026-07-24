@@ -1,53 +1,29 @@
-<section class="insights-grid" aria-label="KPI insights">
-  <article class="panel" aria-label="Top campaigns by selected KPI">
-    <div class="panel-header">Top {{ top_n_campaigns }} Campaigns by {{ top_kpi_label }}</div>
-    {% if top_campaigns %}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Campaign Name</th>
-            <th>{{ top_kpi_label }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in top_campaigns %}
-          <tr>
-            <td>{{ row.rank }}</td>
-            <td>{{ row.campaign_name }}</td>
-            <td>{{ row.kpi_display }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="empty-state">No campaign KPI data available.</div>
-    {% endif %}
-  </article>
-
-  <article class="panel" aria-label="Top platforms by selected KPI">
-    <div class="panel-header">Top {{ top_n_platforms }} Platforms by {{ top_kpi_label }}</div>
-    {% if top_platforms %}
-    {% set row_count = top_platforms|length %}
-    <div class="platform-chart-wrap">
+<section id="insights-top" class="insights-grid" aria-label="KPI insights">
+  {% for chart in top_entity_charts %}
+  <article class="panel" aria-label="Top {{ chart.label_plural }} by selected KPI">
+    <div class="panel-header">Top {{ top_n_entities }} {{ chart.label_plural }} by {{ top_kpi_label }}</div>
+    {% if chart.rows %}
+    {% set row_count = chart.rows|length %}
+    <div class="top-entity-chart-wrap">
       <canvas
-        id="top-platforms-chart"
-        class="platform-chart-canvas"
+        id="top-entity-chart-{{ chart.key }}"
+        class="top-entity-chart"
         role="img"
-        aria-label="Horizontal bar chart of top platforms by selected KPI"
+        aria-label="Horizontal bar chart of top {{ chart.label_plural }} by selected KPI"
         data-row-count="{{ row_count }}"
         data-kpi-key="{{ selected_top_kpi }}"
         data-kpi-label="{{ top_kpi_label }}"
         data-currency-symbol="{{ top_kpi_currency_symbol }}"
-        data-labels='{{ top_platforms | map(attribute="platform") | list | tojson }}'
-        data-values='{{ top_platforms | map(attribute="kpi_value") | list | tojson }}'
-        data-display-values='{{ top_platforms | map(attribute="kpi_display") | list | tojson }}'
+        data-entity-colors='{{ chart.colors | tojson }}'
+        data-default-color="{{ chart.default_color }}"
+        data-labels='{{ chart.rows | map(attribute="entity") | list | tojson }}'
+        data-values='{{ chart.rows | map(attribute="kpi_value") | list | tojson }}'
+        data-display-values='{{ chart.rows | map(attribute="kpi_display") | list | tojson }}'
       ></canvas>
     </div>
     {% else %}
-    <div class="empty-state">No platform KPI data available.</div>
+    <div class="empty-state">No {{ chart.label_plural|lower }} KPI data available.</div>
     {% endif %}
   </article>
+  {% endfor %}
 </section>

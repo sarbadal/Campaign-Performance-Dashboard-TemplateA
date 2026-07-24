@@ -1,5 +1,5 @@
 <section class="panel top-kpi-panel" aria-label="Select KPI">
-  <form method="get" class="top-kpi-form">
+  <form method="get" action="{{ url_for('dashboard.dashboard') }}#insights-top" class="top-kpi-form">
     <input type="hidden" name="date_from" value="{{ filters.date_from }}">
     <input type="hidden" name="date_to" value="{{ filters.date_to }}">
     {% for field in active_filter_fields %}
@@ -7,6 +7,8 @@
       <input type="hidden" name="{{ field.key }}" value="{{ item }}">
       {% endfor %}
     {% endfor %}
+    <input type="hidden" name="line_kpi_left" value="{{ selected_line_kpi_left }}">
+    <input type="hidden" name="line_kpi_right" value="{{ selected_line_kpi_right }}">
     <label class="filter-field top-kpi-field">
       <span class="filter-label">Select KPI</span>
       <div class="top-kpi-row">
