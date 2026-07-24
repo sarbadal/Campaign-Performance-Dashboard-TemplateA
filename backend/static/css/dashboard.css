@@ -11,7 +11,7 @@
 
 body {
   margin: 0;
-  font-family: var(--font-primary, "Georgia", "Times New Roman", serif);
+  font-family: var(--font-primary, "Arial", "Helvetica", sans-serif);
   background:
     radial-gradient(1200px 400px at 80% -10%, #d9efe6 0%, transparent 60%),
     radial-gradient(900px 300px at 5% 110%, #ece7d7 0%, transparent 58%),

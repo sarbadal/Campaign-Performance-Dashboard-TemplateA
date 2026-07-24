@@ -158,3 +158,22 @@ def fetch_mysql_summary(mysql_config: dict[str, object]) -> DbSummary:
         date_min=row[6] if row[6] else None,
         date_max=row[7] if row[7] else None,
     )
+
+
+def fetch_mysql_last_ingested_at(mysql_config: dict[str, object]) -> str | None:
+    """Return latest ingestion timestamp from MySQL state table."""
+    state_table = str(mysql_config.get("state_table", "ingestion_state"))
+    conn = _connect_mysql(mysql_config)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT ingested_at_utc FROM {_quote_ident(state_table)} WHERE id = 1"
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if row is None or not row[0]:
+        return None
+
+    return str(row[0])

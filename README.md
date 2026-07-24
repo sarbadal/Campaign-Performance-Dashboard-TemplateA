@@ -109,7 +109,6 @@ Important keys used by the app:
 	- `KPI_LABEL_FONT_SIZE`, `KPI_VALUE_FONT_SIZE`
 - Footer branding
 	- `FOOTER_TEAM_NAME`
-	- `FOOTER_RIGHT_TEXT`
 	- `FOOTER_LOGO_IMAGE_PATH`
 	- `SHOW_FOOTER_LOGO=true|false`
 

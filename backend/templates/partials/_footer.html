@@ -8,7 +8,7 @@
   </div>
   {% endif %}
   <div>
-    {{ branding.footer_right_text }}
+    Last Updated: {{ branding.last_updated_at or "N/A" }}
   </div>
   {% if branding.show_footer_logo %}
   <div class="footer-logo-wrap" aria-label="Footer logo">

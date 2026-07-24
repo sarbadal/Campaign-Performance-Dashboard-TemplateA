@@ -65,7 +65,6 @@ class Config:
         os.getenv("FOOTER_TEAM_NAME", "Performance Analytics Team").strip()
         or "Performance Analytics Team"
     )
-    FOOTER_RIGHT_TEXT = os.getenv("FOOTER_RIGHT_TEXT", "Generated from data.csv").strip() or "Generated from data.csv"
     FOOTER_LOGO_IMAGE_PATH = os.getenv("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif").strip() or "img/ogs-logo.gif"
     SHOW_FOOTER_LOGO = _as_bool("SHOW_FOOTER_LOGO", True)
 
@@ -73,8 +72,8 @@ class Config:
     BANNER_GRADIENT_MID = os.getenv("BANNER_GRADIENT_MID", "#13795c").strip() or "#13795c"
     BANNER_GRADIENT_END = os.getenv("BANNER_GRADIENT_END", "#2e8f74").strip() or "#2e8f74"
     DASHBOARD_FONT_FAMILY = (
-        os.getenv("DASHBOARD_FONT_FAMILY", '"Georgia", "Times New Roman", serif').strip()
-        or '"Georgia", "Times New Roman", serif'
+        os.getenv("DASHBOARD_FONT_FAMILY", '"Arial", "Helvetica", sans-serif').strip()
+        or '"Arial", "Helvetica", sans-serif'
     )
     KPI_CURRENCY_SYMBOL = os.getenv("KPI_CURRENCY_SYMBOL", "RM").strip()
 

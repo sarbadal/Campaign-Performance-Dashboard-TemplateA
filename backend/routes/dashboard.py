@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 import pandas as pd
 from flask import Blueprint, current_app, render_template, request, url_for
 
@@ -13,8 +15,10 @@ from backend.services.analytics_service import (
     top_entities_by_kpi,
 )
 from backend.services.dataframe_service import DataframeRequest, get_campaign_dataframe
+from backend.services.db_service import fetch_sqlite_last_ingested_at
 from backend.services.kpi_calculation_service import build_kpi_summary_from_dataframe
 from backend.services.kpi_service import KPI_DEFINITIONS, KpiCardsRequest, build_kpi_cards
+from backend.services.mysql_service import fetch_mysql_last_ingested_at
 from backend.services.settings_service import (
     load_platform_chart_colors,
     load_selected_filter_fields,
@@ -88,6 +92,29 @@ def _clean_multi_values(values: list[str]) -> list[str]:
         if value and value not in cleaned:
             cleaned.append(value)
     return cleaned
+
+
+def _format_last_updated(raw: str | None) -> str:
+    if not raw:
+        return "N/A"
+
+    try:
+        dt = datetime.fromisoformat(raw)
+        return dt.astimezone().strftime("%d %b %Y, %I:%M %p")
+    except ValueError:
+        return raw
+
+
+def _resolve_last_updated_display(
+    db_backend: str,
+    sqlite_db_file,
+    mysql_config: dict[str, object],
+) -> str:
+    if db_backend == "mysql":
+        raw = fetch_mysql_last_ingested_at(mysql_config)
+    else:
+        raw = fetch_sqlite_last_ingested_at(sqlite_db_file)
+    return _format_last_updated(raw)
 
 
 def _filter_dataframe(
@@ -264,6 +291,11 @@ def dashboard():
             granularity=selected_line_granularity,
         )
     )
+    last_updated_display = _resolve_last_updated_display(
+        db_backend=db_backend,
+        sqlite_db_file=sqlite_db_file,
+        mysql_config=mysql_config,
+    )
     branding = {
         "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
         "dashboard_kicker": current_app.config.get("DASHBOARD_KICKER", "Client Dashboard"),
@@ -273,7 +305,7 @@ def dashboard():
         ),
         "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
         "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
-        "footer_right_text": current_app.config.get("FOOTER_RIGHT_TEXT", "Generated from data.csv"),
+        "last_updated_at": last_updated_display,
         "footer_logo_image_path": current_app.config.get("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif"),
         "show_footer_logo": bool(current_app.config.get("SHOW_FOOTER_LOGO", True)),
         "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),
@@ -370,6 +402,11 @@ def deep_dive():
 
     filtered_df, filters, filter_options = _filter_dataframe(df, active_filter_fields)
     summary = build_kpi_summary_from_dataframe(filtered_df)
+    last_updated_display = _resolve_last_updated_display(
+        db_backend=db_backend,
+        sqlite_db_file=sqlite_db_file,
+        mysql_config=mysql_config,
+    )
 
     branding = {
         "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
@@ -380,7 +417,7 @@ def deep_dive():
         ),
         "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
         "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
-        "footer_right_text": current_app.config.get("FOOTER_RIGHT_TEXT", "Generated from data.csv"),
+        "last_updated_at": last_updated_display,
         "footer_logo_image_path": current_app.config.get("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif"),
         "show_footer_logo": bool(current_app.config.get("SHOW_FOOTER_LOGO", True)),
         "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),

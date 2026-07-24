@@ -154,3 +154,16 @@ def fetch_summary(db_file: Path) -> DbSummary:
         date_min=row[6] if row[6] else None,
         date_max=row[7] if row[7] else None,
     )
+
+
+def fetch_sqlite_last_ingested_at(db_file: Path) -> str | None:
+    """Return latest ingestion timestamp from SQLite state table."""
+    with _connect(db_file) as conn:
+        row = conn.execute(
+            "SELECT ingested_at_utc FROM ingestion_state WHERE id = 1"
+        ).fetchone()
+
+    if row is None or not row[0]:
+        return None
+
+    return str(row[0])
