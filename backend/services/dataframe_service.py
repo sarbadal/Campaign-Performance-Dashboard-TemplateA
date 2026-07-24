@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import time
+from urllib.parse import quote_plus
 
 import pandas as pd
 
@@ -34,6 +35,40 @@ def _read_mysql_table_as_dataframe(conn, table_name: str) -> pd.DataFrame:
 
     columns = [str(col[0]) for col in description]
     return pd.DataFrame(rows, columns=columns)
+
+
+def _read_mysql_table_as_dataframe_sqlalchemy(
+    mysql_config: dict[str, object],
+    table_name: str,
+) -> pd.DataFrame | None:
+    """Read full MySQL table via SQLAlchemy when available.
+
+    Returns None when SQLAlchemy is not installed so callers can use a fallback.
+    """
+    try:
+        from sqlalchemy import create_engine, text
+    except ModuleNotFoundError:
+        return None
+
+    user = quote_plus(str(mysql_config.get("user", "root")))
+    password = quote_plus(str(mysql_config.get("password", "")))
+    host = str(mysql_config.get("host", "127.0.0.1"))
+    port = int(mysql_config.get("port", 3306))
+    database = quote_plus(str(mysql_config.get("database", "campaign_performance")))
+
+    engine = create_engine(
+        f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4",
+        pool_pre_ping=True,
+    )
+    try:
+        sql = f"SELECT * FROM {_quote_mysql_ident(table_name)}"
+        with engine.connect() as sql_conn:
+            result = sql_conn.execute(text(sql))
+            rows = result.fetchall()
+            columns = list(result.keys())
+        return pd.DataFrame(rows, columns=columns)
+    finally:
+        engine.dispose()
 
 
 @dataclass
@@ -75,11 +110,13 @@ def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
     elif backend == "mysql":
         ensure_mysql_synced(csv_file=request.data_file, mysql_config=request.mysql_config)
         table_name = str(request.mysql_config.get("table", "campaign_data"))
-        conn = get_mysql_connection(request.mysql_config)
-        try:
-            dataframe = _read_mysql_table_as_dataframe(conn, table_name)
-        finally:
-            conn.close()
+        dataframe = _read_mysql_table_as_dataframe_sqlalchemy(request.mysql_config, table_name)
+        if dataframe is None:
+            conn = get_mysql_connection(request.mysql_config)
+            try:
+                dataframe = _read_mysql_table_as_dataframe(conn, table_name)
+            finally:
+                conn.close()
     else:
         raise ValueError(f"Unsupported DB_BACKEND: {backend}. Use 'sqlite' or 'mysql'.")
 
