@@ -221,23 +221,42 @@
 }
 
 .top-kpi-form {
-  display: block;
+  flex: 1 1 280px;
 }
 
 .top-kpi-field {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
 .top-kpi-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.top-kpi-row select {
-  min-width: 220px;
-  max-width: 420px;
+.top-kpi-control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.top-kpi-control-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.top-kpi-control-row .btn-apply {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.top-chart-kpi-form {
+  margin: 8px 0 12px;
 }
 
 @media (min-width: 880px) {
@@ -257,8 +276,13 @@
     align-items: stretch;
   }
 
-  .top-kpi-row select,
-  .top-kpi-row .btn-apply {
+  .top-kpi-control-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .top-kpi-control-row select,
+  .top-kpi-control-row .btn-apply {
     width: 100%;
     max-width: none;
   }

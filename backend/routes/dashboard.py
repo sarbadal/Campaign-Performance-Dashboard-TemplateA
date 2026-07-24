@@ -214,9 +214,21 @@ def dashboard():
         )
 
     filtered_df, filters, filter_options = _filter_dataframe(df, active_filter_fields)
-    requested_top_kpi = _as_clean_str(request.args.get("top_kpi", ""))
-    selected_top_kpi = requested_top_kpi if requested_top_kpi in TOP_KPI_KEYS else DEFAULT_TOP_KPI_KEY
-    filters["top_kpi"] = selected_top_kpi
+    requested_shared_top_kpi = _as_clean_str(request.args.get("top_kpi", ""))
+    shared_top_kpi = requested_shared_top_kpi if requested_shared_top_kpi in TOP_KPI_KEYS else DEFAULT_TOP_KPI_KEY
+
+    requested_top_kpi_adset = _as_clean_str(request.args.get("top_kpi_adset", ""))
+    requested_top_kpi_platform = _as_clean_str(request.args.get("top_kpi_platform", ""))
+
+    selected_top_kpi_adset = (
+        requested_top_kpi_adset if requested_top_kpi_adset in TOP_KPI_KEYS else shared_top_kpi
+    )
+    selected_top_kpi_platform = (
+        requested_top_kpi_platform if requested_top_kpi_platform in TOP_KPI_KEYS else shared_top_kpi
+    )
+
+    filters["top_kpi_adset"] = selected_top_kpi_adset
+    filters["top_kpi_platform"] = selected_top_kpi_platform
     requested_line_kpi_left = _as_clean_str(request.args.get("line_kpi_left", ""))
     requested_line_kpi_right = _as_clean_str(request.args.get("line_kpi_right", ""))
     requested_line_granularity = _as_clean_str(request.args.get("line_granularity", ""))
@@ -258,13 +270,19 @@ def dashboard():
         if definition is None:
             continue
 
+        chart_kpi_key = (
+            selected_top_kpi_platform
+            if chart_key == "platform"
+            else selected_top_kpi_adset if chart_key == "adset_name" else shared_top_kpi
+        )
+
         rows = top_entities_by_kpi(
             TopEntityKpiRequest(
                 df=filtered_df,
                 entity_column=definition["column"],
                 entity_key="entity",
                 top_n=TOP_N_PLATFORMS,
-                kpi_key=selected_top_kpi,
+                kpi_key=chart_kpi_key,
                 currency_symbol=currency_symbol,
             )
         )
@@ -274,6 +292,8 @@ def dashboard():
                 "key": chart_key,
                 "label_plural": definition["label_plural"],
                 "rows": rows,
+                "kpi_key": chart_kpi_key,
+                "kpi_label": KPI_DEFINITIONS.get(chart_kpi_key, KPI_DEFINITIONS.get(DEFAULT_TOP_KPI_KEY, "Spend")),
                 "colors": top_entity_chart_colors.get(
                     chart_key,
                     platform_chart_colors if chart_key == "platform" else {},
@@ -282,7 +302,6 @@ def dashboard():
             }
         )
     top_kpi_options = {key: KPI_DEFINITIONS[key] for key in TOP_KPI_KEYS if key in KPI_DEFINITIONS}
-    top_kpi_label = top_kpi_options.get(selected_top_kpi, KPI_DEFINITIONS.get(DEFAULT_TOP_KPI_KEY, "Spend"))
     dual_axis_series = dual_axis_kpi_series(
         DualAxisKpiSeriesRequest(
             df=filtered_df,
@@ -329,9 +348,10 @@ def dashboard():
         kpi_cards=kpi_cards,
         top_entity_charts=top_entity_charts,
         top_n_entities=TOP_N_PLATFORMS,
-        top_kpi_label=top_kpi_label,
         top_kpi_options=top_kpi_options,
-        selected_top_kpi=selected_top_kpi,
+        selected_top_kpi_adset=selected_top_kpi_adset,
+        selected_top_kpi_platform=selected_top_kpi_platform,
+        selected_top_kpi=shared_top_kpi,
         selected_line_kpi_left=selected_line_kpi_left,
         selected_line_kpi_right=selected_line_kpi_right,
         selected_line_granularity=selected_line_granularity,

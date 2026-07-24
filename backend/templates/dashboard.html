@@ -18,12 +18,18 @@
     {% include "partials/_page_header.html" %}
     {% include "partials/_filters.html" %}
     {% include "partials/_kpi_grid.html" %}
-    {% include "partials/_top_kpi_selector.html" %}
     {% include "partials/_top_campaigns_table.html" %}
     {% include "partials/_dual_axis_chart.html" %}
     {% include "partials/_footer.html" %}
   </main>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="{{ url_for('static', filename='js/dashboard.js', v='20260724l') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-dropdowns.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-top-entity-charts.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-dual-axis-chart.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-sync.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-top-kpi-form.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-trend-form.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-filters-form.js', v='20260724q') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard/dashboard-init.js', v='20260724q') }}"></script>
 </body>
 </html>

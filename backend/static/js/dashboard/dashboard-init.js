@@ -1,5 +1,4 @@
 (() => {
-  // Backward-compatible bootstrap for any legacy include of this file.
   if (window.DashboardCharts && typeof window.DashboardCharts.renderTopEntityCharts === 'function') {
     window.DashboardCharts.renderTopEntityCharts(document);
   }

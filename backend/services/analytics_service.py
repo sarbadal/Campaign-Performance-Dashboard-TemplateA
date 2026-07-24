@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 
-TOP_N_PLATFORMS = 6
+TOP_N_PLATFORMS = 5
 CURRENCY_SYMBOL = os.getenv("KPI_CURRENCY_SYMBOL", "RM").strip()
 DEFAULT_TOP_KPI_KEY = "total_spend"
 TOP_KPI_KEYS = [

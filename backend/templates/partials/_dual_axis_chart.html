@@ -8,7 +8,8 @@
       <input type="hidden" name="{{ field.key }}" value="{{ item }}">
       {% endfor %}
     {% endfor %}
-    <input type="hidden" name="top_kpi" value="{{ selected_top_kpi }}">
+    <input type="hidden" name="top_kpi_adset" value="{{ selected_top_kpi_adset }}">
+    <input type="hidden" name="top_kpi_platform" value="{{ selected_top_kpi_platform }}">
     <label class="filter-field">
       <span class="filter-label">Left Axis KPI</span>
       <select name="line_kpi_left" aria-label="Select left axis KPI">

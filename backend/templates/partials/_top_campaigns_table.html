@@ -1,7 +1,47 @@
 <section id="insights-top" class="insights-grid" aria-label="KPI insights">
   {% for chart in top_entity_charts %}
+  {% if chart.key == "adset_name" %}
+    {% set kpi_param_name = "top_kpi_adset" %}
+    {% set apply_label = "Apply" %}
+  {% elif chart.key == "platform" %}
+    {% set kpi_param_name = "top_kpi_platform" %}
+    {% set apply_label = "Apply" %}
+  {% else %}
+    {% set kpi_param_name = "top_kpi" %}
+    {% set apply_label = "Apply" %}
+  {% endif %}
   <article class="panel" aria-label="Top {{ chart.label_plural }} by selected KPI">
-    <div class="panel-header">Top {{ top_n_entities }} {{ chart.label_plural }} by {{ top_kpi_label }}</div>
+    <div class="panel-header">Top {{ top_n_entities }} {{ chart.label_plural }} by {{ chart.kpi_label }}</div>
+    <form method="get" action="{{ url_for('dashboard.dashboard') }}#insights-top" class="top-chart-kpi-form">
+      <input type="hidden" name="date_from" value="{{ filters.date_from }}">
+      <input type="hidden" name="date_to" value="{{ filters.date_to }}">
+      {% for field in active_filter_fields %}
+        {% for item in filters[field.key] %}
+        <input type="hidden" name="{{ field.key }}" value="{{ item }}">
+        {% endfor %}
+      {% endfor %}
+      <input type="hidden" name="line_kpi_left" value="{{ selected_line_kpi_left }}">
+      <input type="hidden" name="line_kpi_right" value="{{ selected_line_kpi_right }}">
+      <input type="hidden" name="line_granularity" value="{{ selected_line_granularity }}">
+      {% if kpi_param_name != "top_kpi_adset" %}
+      <input type="hidden" name="top_kpi_adset" value="{{ selected_top_kpi_adset }}">
+      {% endif %}
+      {% if kpi_param_name != "top_kpi_platform" %}
+      <input type="hidden" name="top_kpi_platform" value="{{ selected_top_kpi_platform }}">
+      {% endif %}
+
+      <label class="filter-field top-kpi-field">
+        <span class="filter-label">{{ chart.label_plural }} KPI</span>
+        <div class="top-kpi-control-row">
+          <select name="{{ kpi_param_name }}" aria-label="Select KPI for {{ chart.label_plural|lower }} chart">
+            {% for key, label in top_kpi_options.items() %}
+            <option value="{{ key }}" {% if key == chart.kpi_key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn-apply">{{ apply_label }}</button>
+        </div>
+      </label>
+    </form>
     {% if chart.rows %}
     {% set row_count = chart.rows|length %}
     <div class="top-entity-chart-wrap">
@@ -11,8 +51,8 @@
         role="img"
         aria-label="Horizontal bar chart of top {{ chart.label_plural }} by selected KPI"
         data-row-count="{{ row_count }}"
-        data-kpi-key="{{ selected_top_kpi }}"
-        data-kpi-label="{{ top_kpi_label }}"
+        data-kpi-key="{{ chart.kpi_key }}"
+        data-kpi-label="{{ chart.kpi_label }}"
         data-currency-symbol="{{ top_kpi_currency_symbol }}"
         data-entity-colors='{{ chart.colors | tojson }}'
         data-default-color="{{ chart.default_color }}"
