@@ -25,6 +25,14 @@
         {% endfor %}
       </select>
     </label>
+    <label class="filter-field">
+      <span class="filter-label">X-axis Aggregation</span>
+      <select name="line_granularity" aria-label="Select trend x-axis aggregation">
+        {% for key, label in trend_granularity_options.items() %}
+        <option value="{{ key }}" {% if key == selected_line_granularity %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
     <button type="submit" class="btn-apply">Apply Trend KPIs</button>
   </form>
 

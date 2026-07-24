@@ -54,6 +54,44 @@ class DualAxisKpiSeriesRequest:
     df: pd.DataFrame
     left_kpi_key: str
     right_kpi_key: str
+    granularity: str = "daily"
+
+
+_TREND_GRANULARITIES = {"daily", "weekly", "monthly", "quarterly", "yearly"}
+
+
+def _resolve_trend_granularity(granularity: str) -> str:
+    cleaned = str(granularity or "").strip().lower()
+    if cleaned in _TREND_GRANULARITIES:
+        return cleaned
+    return "daily"
+
+
+def _bucket_dates(series: pd.Series, granularity: str) -> pd.Series:
+    normalized = pd.to_datetime(series, errors="coerce")
+    if granularity == "daily":
+        return normalized.dt.floor("D")
+    if granularity == "weekly":
+        # Monday-start week bucket.
+        return (normalized - pd.to_timedelta(normalized.dt.weekday, unit="D")).dt.floor("D")
+    if granularity == "monthly":
+        return normalized.dt.to_period("M").dt.start_time
+    if granularity == "quarterly":
+        return normalized.dt.to_period("Q").dt.start_time
+    if granularity == "yearly":
+        return normalized.dt.to_period("Y").dt.start_time
+    return normalized.dt.floor("D")
+
+
+def _format_trend_bucket_labels(bucket_dates: pd.Series, granularity: str) -> list[str]:
+    stamps = pd.to_datetime(bucket_dates, errors="coerce")
+    if granularity == "monthly":
+        return [value.strftime("%Y-%m") for value in stamps]
+    if granularity == "quarterly":
+        return [f"{value.year}-Q{((value.month - 1) // 3) + 1}" for value in stamps]
+    if granularity == "yearly":
+        return [value.strftime("%Y") for value in stamps]
+    return [value.strftime("%Y-%m-%d") for value in stamps]
 
 
 def _numeric_column_series(df: pd.DataFrame, column: str) -> pd.Series:
@@ -154,6 +192,7 @@ def dual_axis_kpi_series(request: DualAxisKpiSeriesRequest) -> dict[str, list[fl
 
     left_kpi_key = _resolve_top_kpi_key(request.left_kpi_key)
     right_kpi_key = _resolve_top_kpi_key(request.right_kpi_key)
+    granularity = _resolve_trend_granularity(request.granularity)
 
     working = pd.DataFrame({
         "DATE": pd.to_datetime(request.df["DATE"], errors="coerce"),
@@ -175,17 +214,20 @@ def dual_axis_kpi_series(request: DualAxisKpiSeriesRequest) -> dict[str, list[fl
             "right_values": [],
         }
 
+    working["DATE_BUCKET"] = _bucket_dates(working["DATE"], granularity)
+    working = working.dropna(subset=["DATE_BUCKET"])
+
     grouped = (
         working
-        .groupby(working["DATE"].dt.date, as_index=False)
+        .groupby("DATE_BUCKET", as_index=False)
         .sum(numeric_only=True)
-        .sort_values("DATE")
+        .sort_values("DATE_BUCKET")
     )
 
     left_series = _kpi_value_for_grouped(grouped, left_kpi_key).astype("float64").fillna(0.0)
     right_series = _kpi_value_for_grouped(grouped, right_kpi_key).astype("float64").fillna(0.0)
 
-    labels = [str(value) for value in grouped["DATE"].tolist()]
+    labels = _format_trend_bucket_labels(grouped["DATE_BUCKET"], granularity)
     left_values = [float(value) for value in left_series.tolist()]
     right_values = [float(value) for value in right_series.tolist()]
 

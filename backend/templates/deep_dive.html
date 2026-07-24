@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Campaign Performance</title>
+  <title>Deep Dive</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260724h') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-layout.css', v='20260724h') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-item.css', v='20260724h') }}">
@@ -15,15 +15,9 @@
 >
   <main class="container">
     {% include "partials/_banner.html" %}
-    {% include "partials/_page_header.html" %}
     {% include "partials/_filters.html" %}
-    {% include "partials/_kpi_grid.html" %}
-    {% include "partials/_top_kpi_selector.html" %}
-    {% include "partials/_top_campaigns_table.html" %}
-    {% include "partials/_dual_axis_chart.html" %}
     {% include "partials/_footer.html" %}
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="{{ url_for('static', filename='js/dashboard.js', v='20260724l') }}"></script>
 </body>
 </html>

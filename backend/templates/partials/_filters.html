@@ -31,8 +31,7 @@
     </div>
     <div class="filters-actions">
       <button type="submit" class="btn-apply">Apply Filters</button>
-      <a class="btn-clear" href="{{ url_for('dashboard.dashboard') }}">Clear</a>
-      <span class="filters-count">Showing {{ filtered_rows }} of {{ total_rows }} rows</span>
+      <a class="btn-clear" href="{{ clear_url if clear_url else url_for('dashboard.dashboard') }}">Clear</a>
     </div>
   </form>
 </section>

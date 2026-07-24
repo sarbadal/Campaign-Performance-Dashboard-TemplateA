@@ -16,6 +16,17 @@ def _as_int(name: str, default: int) -> int:
         return default
 
 
+def _as_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 class Config:
     """Application configuration."""
 
@@ -55,6 +66,8 @@ class Config:
         or "Performance Analytics Team"
     )
     FOOTER_RIGHT_TEXT = os.getenv("FOOTER_RIGHT_TEXT", "Generated from data.csv").strip() or "Generated from data.csv"
+    FOOTER_LOGO_IMAGE_PATH = os.getenv("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif").strip() or "img/ogs-logo.gif"
+    SHOW_FOOTER_LOGO = _as_bool("SHOW_FOOTER_LOGO", True)
 
     BANNER_GRADIENT_START = os.getenv("BANNER_GRADIENT_START", "#0b6e4f").strip() or "#0b6e4f"
     BANNER_GRADIENT_MID = os.getenv("BANNER_GRADIENT_MID", "#13795c").strip() or "#13795c"

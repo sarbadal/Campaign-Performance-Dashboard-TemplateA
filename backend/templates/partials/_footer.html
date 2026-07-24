@@ -2,7 +2,17 @@
   <div>
     <strong>{{ branding.footer_team_name }}</strong> | Confidential Internal Reporting
   </div>
+  {% if kpi is defined %}
+  <div>
+    Date Range: {{ kpi.date_min or "N/A" }} to {{ kpi.date_max or "N/A" }}
+  </div>
+  {% endif %}
   <div>
     {{ branding.footer_right_text }}
   </div>
+  {% if branding.show_footer_logo %}
+  <div class="footer-logo-wrap" aria-label="Footer logo">
+    <img class="footer-logo" src="{{ url_for('static', filename=branding.footer_logo_image_path) }}" alt="Footer logo">
+  </div>
+  {% endif %}
 </footer>

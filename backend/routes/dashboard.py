@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from flask import Blueprint, current_app, render_template, request
+from flask import Blueprint, current_app, render_template, request, url_for
 
 from backend.services.analytics_service import (
     DualAxisKpiSeriesRequest,
@@ -42,6 +42,14 @@ TOP_ENTITY_CHART_DEFINITIONS: dict[str, dict[str, str]] = {
     "campaign_group": {"label_plural": "Campaign Groups", "column": "CAMPAIGN_GROUP"},
     "adname": {"label_plural": "Ad Names", "column": "AD_NAME"},
     "adset_name": {"label_plural": "Adset Names", "column": "ADSET_NAME"},
+}
+
+TREND_GRANULARITY_OPTIONS: dict[str, str] = {
+    "daily": "Daily",
+    "weekly": "Weekly (Mon Start)",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly",
 }
 
 
@@ -184,15 +192,20 @@ def dashboard():
     filters["top_kpi"] = selected_top_kpi
     requested_line_kpi_left = _as_clean_str(request.args.get("line_kpi_left", ""))
     requested_line_kpi_right = _as_clean_str(request.args.get("line_kpi_right", ""))
+    requested_line_granularity = _as_clean_str(request.args.get("line_granularity", ""))
     selected_line_kpi_left = requested_line_kpi_left if requested_line_kpi_left in TOP_KPI_KEYS else "total_spend"
     selected_line_kpi_right = (
         requested_line_kpi_right if requested_line_kpi_right in TOP_KPI_KEYS else "total_impressions"
+    )
+    selected_line_granularity = (
+        requested_line_granularity if requested_line_granularity in TREND_GRANULARITY_OPTIONS else "daily"
     )
     if selected_line_kpi_right == selected_line_kpi_left:
         selected_line_kpi_right = "total_clicks" if selected_line_kpi_left != "total_clicks" else "total_reach"
 
     filters["line_kpi_left"] = selected_line_kpi_left
     filters["line_kpi_right"] = selected_line_kpi_right
+    filters["line_granularity"] = selected_line_granularity
 
     summary = build_kpi_summary_from_dataframe(filtered_df)
     selected_kpis = load_selected_kpis(settings_file)
@@ -248,6 +261,7 @@ def dashboard():
             df=filtered_df,
             left_kpi_key=selected_line_kpi_left,
             right_kpi_key=selected_line_kpi_right,
+            granularity=selected_line_granularity,
         )
     )
     branding = {
@@ -260,6 +274,8 @@ def dashboard():
         "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
         "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
         "footer_right_text": current_app.config.get("FOOTER_RIGHT_TEXT", "Generated from data.csv"),
+        "footer_logo_image_path": current_app.config.get("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif"),
+        "show_footer_logo": bool(current_app.config.get("SHOW_FOOTER_LOGO", True)),
         "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),
         "banner_gradient_mid": current_app.config.get("BANNER_GRADIENT_MID", "#13795c"),
         "banner_gradient_end": current_app.config.get("BANNER_GRADIENT_END", "#2e8f74"),
@@ -286,6 +302,8 @@ def dashboard():
         selected_top_kpi=selected_top_kpi,
         selected_line_kpi_left=selected_line_kpi_left,
         selected_line_kpi_right=selected_line_kpi_right,
+        selected_line_granularity=selected_line_granularity,
+        trend_granularity_options=TREND_GRANULARITY_OPTIONS,
         dual_axis_series=dual_axis_series,
         top_kpi_currency_symbol=currency_symbol,
         platform_chart_colors=platform_chart_colors,
@@ -298,4 +316,98 @@ def dashboard():
         kpi_options=KPI_DEFINITIONS,
         settings_file=str(settings_file),
         branding=branding,
+        current_page="dashboard",
+        clear_url=url_for("dashboard.dashboard"),
+    )
+
+
+@dashboard_bp.get("/deep-dive")
+def deep_dive():
+    data_file = current_app.config["DATA_FILE"]
+    db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
+    sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
+    mysql_config = {
+        "host": current_app.config.get("MYSQL_HOST", "127.0.0.1"),
+        "port": int(current_app.config.get("MYSQL_PORT", 3306)),
+        "user": current_app.config.get("MYSQL_USER", "root"),
+        "password": current_app.config.get("MYSQL_PASSWORD", ""),
+        "database": current_app.config.get("MYSQL_DATABASE", "campaign_performance"),
+        "table": current_app.config.get("MYSQL_TABLE", "campaign_data"),
+        "state_table": current_app.config.get("MYSQL_STATE_TABLE", "ingestion_state"),
+    }
+    settings_file = current_app.config["DASHBOARD_SETTINGS_FILE"]
+    field_mapping_file = current_app.config["FIELD_MAPPING_FILE"]
+    cache_ttl_seconds = int(current_app.config.get("KPI_CACHE_TTL_SECONDS", 300))
+
+    df = get_campaign_dataframe(
+        DataframeRequest(
+            data_file=data_file,
+            db_backend=db_backend,
+            sqlite_db_file=sqlite_db_file,
+            mysql_config=mysql_config,
+            field_mapping_file=field_mapping_file,
+            cache_ttl_seconds=cache_ttl_seconds,
+        )
+    )
+    selected_filter_keys = load_selected_filter_fields(
+        settings_file=settings_file,
+        allowed_fields=list(FILTER_FIELD_DEFINITIONS.keys()),
+        max_filters=3,
+    )
+
+    active_filter_fields: list[dict[str, str]] = []
+    for key in selected_filter_keys:
+        definition = FILTER_FIELD_DEFINITIONS.get(key)
+        if definition is None:
+            continue
+        active_filter_fields.append(
+            {
+                "key": key,
+                "label": definition["label"],
+                "column": definition["column"],
+            }
+        )
+
+    filtered_df, filters, filter_options = _filter_dataframe(df, active_filter_fields)
+    summary = build_kpi_summary_from_dataframe(filtered_df)
+
+    branding = {
+        "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
+        "dashboard_kicker": current_app.config.get("DASHBOARD_KICKER", "Client Dashboard"),
+        "banner_title": current_app.config.get(
+            "DASHBOARD_BANNER_TITLE",
+            "Campaign Performance Executive Snapshot",
+        ),
+        "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
+        "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
+        "footer_right_text": current_app.config.get("FOOTER_RIGHT_TEXT", "Generated from data.csv"),
+        "footer_logo_image_path": current_app.config.get("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif"),
+        "show_footer_logo": bool(current_app.config.get("SHOW_FOOTER_LOGO", True)),
+        "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),
+        "banner_gradient_mid": current_app.config.get("BANNER_GRADIENT_MID", "#13795c"),
+        "banner_gradient_end": current_app.config.get("BANNER_GRADIENT_END", "#2e8f74"),
+        "dashboard_font_family": current_app.config.get(
+            "DASHBOARD_FONT_FAMILY",
+            '"Georgia", "Times New Roman", serif',
+        ),
+        "kpi_label_color": current_app.config.get("KPI_LABEL_COLOR", "#56605b"),
+        "kpi_value_color": current_app.config.get("KPI_VALUE_COLOR", "#0b6e4f"),
+        "kpi_label_font_size": current_app.config.get("KPI_LABEL_FONT_SIZE", "0.9rem"),
+        "kpi_value_font_size": current_app.config.get(
+            "KPI_VALUE_FONT_SIZE",
+            "1.8rem",
+        ),
+    }
+
+    return render_template(
+        "deep_dive.html",
+        kpi=summary,
+        filters=filters,
+        active_filter_fields=active_filter_fields,
+        filter_options=filter_options,
+        filtered_rows=int(filtered_df.shape[0]),
+        total_rows=int(df.shape[0]),
+        branding=branding,
+        current_page="deep_dive",
+        clear_url=url_for("dashboard.deep_dive"),
     )
