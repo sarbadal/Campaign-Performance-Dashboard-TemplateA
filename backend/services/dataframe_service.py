@@ -24,6 +24,18 @@ def _quote_mysql_ident(name: str) -> str:
     return "`" + name.replace("`", "``") + "`"
 
 
+def _read_mysql_table_as_dataframe(conn, table_name: str) -> pd.DataFrame:
+    """Read full MySQL table into a DataFrame without pandas SQL adapters."""
+    sql = f"SELECT * FROM {_quote_mysql_ident(table_name)}"
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        rows = cur.fetchall()
+        description = cur.description or []
+
+    columns = [str(col[0]) for col in description]
+    return pd.DataFrame(rows, columns=columns)
+
+
 @dataclass
 class DataframeRequest:
     data_file: Path
@@ -63,10 +75,9 @@ def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
     elif backend == "mysql":
         ensure_mysql_synced(csv_file=request.data_file, mysql_config=request.mysql_config)
         table_name = str(request.mysql_config.get("table", "campaign_data"))
-        sql = f"SELECT * FROM {_quote_mysql_ident(table_name)}"
         conn = get_mysql_connection(request.mysql_config)
         try:
-            dataframe = pd.read_sql(sql, conn)
+            dataframe = _read_mysql_table_as_dataframe(conn, table_name)
         finally:
             conn.close()
     else:
