@@ -26,6 +26,11 @@
   align-self: end;
 }
 
+.dual-axis-form .dual-axis-download-btn {
+  align-self: end;
+  cursor: pointer;
+}
+
 .dual-axis-chart-wrap {
   position: relative;
   width: 100%;

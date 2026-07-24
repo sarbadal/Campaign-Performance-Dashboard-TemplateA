@@ -1,6 +1,19 @@
 (() => {
   const registry = window.DashboardCharts || {};
 
+  const parseJsonArray = (raw) => {
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_err) {
+      return [];
+    }
+  };
+
   registry.renderDualAxisChart = (root = document) => {
     const canvas = root.querySelector('#dual-axis-kpi-chart');
     if (!(canvas instanceof HTMLCanvasElement) || typeof Chart === 'undefined') {
@@ -12,19 +25,6 @@
     }
 
     canvas.dataset.chartInitialized = '1';
-
-    const parseJsonArray = (raw) => {
-      if (!raw) {
-        return [];
-      }
-
-      try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (_err) {
-        return [];
-      }
-    };
 
     const labels = parseJsonArray(canvas.dataset.labels).map((item) => String(item));
     const leftValues = parseJsonArray(canvas.dataset.leftValues).map((item) => Number(item) || 0);
@@ -166,6 +166,80 @@
       },
     });
   };
+
+  const csvEscape = (value) => {
+    const text = String(value ?? '');
+    if (!/[",\n]/.test(text)) {
+      return text;
+    }
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const downloadDualAxisCsv = () => {
+    const canvas = document.querySelector('#dual-axis-kpi-chart');
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      return;
+    }
+
+    const labels = parseJsonArray(canvas.dataset.labels).map((item) => String(item));
+    const leftValues = parseJsonArray(canvas.dataset.leftValues).map((item) => Number(item) || 0);
+    const rightValues = parseJsonArray(canvas.dataset.rightValues).map((item) => Number(item) || 0);
+
+    if (!labels.length || !leftValues.length || !rightValues.length) {
+      return;
+    }
+
+    const leftKpiLabel = (canvas.dataset.leftKpiLabel || 'Left KPI').trim() || 'Left KPI';
+    const rightKpiLabel = (canvas.dataset.rightKpiLabel || 'Right KPI').trim() || 'Right KPI';
+
+    const rowCount = Math.min(labels.length, leftValues.length, rightValues.length);
+    const lines = [
+      [
+        csvEscape('Date Bucket'),
+        csvEscape(leftKpiLabel),
+        csvEscape(rightKpiLabel),
+      ].join(','),
+    ];
+
+    for (let i = 0; i < rowCount; i += 1) {
+      lines.push([
+        csvEscape(labels[i]),
+        csvEscape(leftValues[i]),
+        csvEscape(rightValues[i]),
+      ].join(','));
+    }
+
+    const csv = `${lines.join('\n')}\n`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `dual_axis_kpi_trend_${timestamp}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!window.__dashboardDualAxisCsvBound) {
+    window.__dashboardDualAxisCsvBound = true;
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const downloadButton = target.closest('.dual-axis-download-btn');
+      if (!(downloadButton instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      event.preventDefault();
+      downloadDualAxisCsv();
+    });
+  }
 
   window.DashboardCharts = registry;
 })();
