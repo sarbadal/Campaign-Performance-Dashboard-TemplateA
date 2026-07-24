@@ -1,0 +1,187 @@
+# Campaign Performance Dashboard (Template A)
+
+A Flask + pandas web app for campaign performance reporting with configurable KPI cards, filter controls, top-entity bar charts, and dual-axis trend analysis.
+
+## What this app includes
+
+- Dashboard page (`/`)
+	- Date range + multi-select filters
+	- KPI summary cards
+	- Top KPI selector
+	- Two configurable Top 10 entity charts
+	- Dual-axis trend line chart with selectable left/right KPIs
+	- Trend aggregation: daily, weekly (Monday start), monthly, quarterly, yearly
+- Deep Dive page (`/deep-dive`)
+	- Shared filter panel
+	- Shared footer with date range + optional logo
+- Config-driven behavior via `settings/dashboard_settings.json`
+- Branding/theme configuration via `.env`
+- Data source support:
+	- SQLite (default)
+	- MySQL
+
+## Tech stack
+
+- Python 3
+- Flask
+- pandas
+- Chart.js (CDN in template)
+- python-dotenv
+- PyMySQL
+
+## Project structure
+
+```
+main.py
+backend/
+	app_factory.py
+	config.py
+	routes/
+		dashboard.py
+	services/
+		analytics_service.py
+		dataframe_service.py
+		db_service.py
+		field_mapping_service.py
+		kpi_calculation_service.py
+		kpi_service.py
+		mysql_service.py
+		settings_service.py
+	static/
+		css/
+		js/
+		img/
+	templates/
+		dashboard.html
+		deep_dive.html
+		partials/
+data/
+	data.csv
+settings/
+	dashboard_settings.json
+	field_mapping.json
+```
+
+## Quick start
+
+1. Create and activate a virtual environment.
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Configure `.env` (or use defaults).
+4. Run locally:
+
+```bash
+python main.py
+```
+
+5. Open:
+	 - `http://127.0.0.1:5055/`
+	 - `http://127.0.0.1:5055/deep-dive`
+
+## Configuration
+
+### Environment variables (`.env`)
+
+Important keys used by the app:
+
+- Data/backend
+	- `DB_BACKEND=sqlite|mysql`
+	- `SQLITE_DB_FILE`
+	- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
+	- `MYSQL_TABLE`, `MYSQL_STATE_TABLE`
+	- `DASHBOARD_SETTINGS_FILE`
+	- `FIELD_MAPPING_FILE`
+	- `KPI_CACHE_TTL_SECONDS`
+- KPI formatting
+	- `KPI_CURRENCY_SYMBOL`
+- Banner branding
+	- `CLIENT_NAME`
+	- `DASHBOARD_KICKER`
+	- `DASHBOARD_BANNER_TITLE`
+	- `LOGO_IMAGE_PATH`
+	- `BANNER_GRADIENT_START`, `BANNER_GRADIENT_MID`, `BANNER_GRADIENT_END`
+	- `DASHBOARD_FONT_FAMILY`
+	- `KPI_LABEL_COLOR`, `KPI_VALUE_COLOR`
+	- `KPI_LABEL_FONT_SIZE`, `KPI_VALUE_FONT_SIZE`
+- Footer branding
+	- `FOOTER_TEAM_NAME`
+	- `FOOTER_RIGHT_TEXT`
+	- `FOOTER_LOGO_IMAGE_PATH`
+	- `SHOW_FOOTER_LOGO=true|false`
+
+Notes:
+- `LOGO_IMAGE_PATH` and `FOOTER_LOGO_IMAGE_PATH` should be paths under `backend/static/`, for example `img/ogs-logo.gif`.
+- `SHOW_FOOTER_LOGO` accepts: `true/false`, `1/0`, `yes/no`, `on/off`.
+
+### Dashboard settings (`settings/dashboard_settings.json`)
+
+This JSON controls visible KPIs, selected filter fields, selected top-entity charts, and chart colors.
+
+Key sections:
+
+- `available_kpis`, `selected_kpis`
+- `available_filter_fields`, `selected_filter_fields`
+- `available_top_entity_charts`, `selected_top_entity_charts`
+- `top_entity_chart_default_color`
+- `top_entity_chart_colors` (per entity type and item value)
+- `platform_chart_colors` (legacy compatibility for platform colors)
+
+Current chart key options:
+
+- `platform`
+- `campaign_name`
+- `campaign_group`
+- `adname`
+- `adset_name`
+
+## Data and field mapping
+
+The app reads data from the selected DB backend and applies a field mapping from `settings/field_mapping.json`.
+
+Required logical fields include:
+
+- `DATE`
+- `CAMPAIGN_NAME`
+- `AMOUNT_SPENT`
+- `IMPRESSIONS`
+- `CLICKS`
+- `REACH`
+- `CONVERSIONS`
+- `LEADS`
+- `VIDEO_VIEWS`
+- `LIKES`
+- `VIDEO_COMPLETION`
+
+Optional filter/chart dimensions used in UI:
+
+- `OBJECTIVE`
+- `CAMPAIGN_GROUP`
+- `PLATFORM`
+- `AD_NAME`
+- `ADSET_NAME`
+
+## Routing
+
+- `GET /` -> dashboard
+- `GET /deep-dive` -> deep dive filter page
+
+## Analytics behavior summary
+
+- Top entity charts rank by a selected KPI and return top N (default N=6 in code).
+- Dual-axis trend chart builds date buckets by selected granularity and plots two KPI series.
+- Weekly bucket starts on Monday.
+- KPI display uses compact formatting and currency symbol from environment settings.
+
+## Deployment note
+
+`main.py` includes an `entry_point(request)` function for Google Cloud Functions style deployment.
+
+## Troubleshooting
+
+- If UI changes do not appear, hard refresh browser to bypass cached static files.
+- If using MySQL, confirm connection values in `.env` and table names match.
+- If filters/charts show empty results, validate field names in `settings/field_mapping.json` against source data.
