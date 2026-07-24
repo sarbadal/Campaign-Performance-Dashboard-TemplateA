@@ -255,6 +255,12 @@
   white-space: nowrap;
 }
 
+.top-kpi-control-row .top-entity-download-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .top-chart-kpi-form {
   margin: 8px 0 12px;
 }

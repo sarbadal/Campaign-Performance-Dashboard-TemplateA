@@ -1,40 +1,48 @@
 (() => {
   const registry = window.DashboardCharts || {};
 
+  const parseJsonArray = (raw) => {
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_err) {
+      return [];
+    }
+  };
+
+  const parseJsonObject = (raw) => {
+    if (!raw) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
+      return {};
+    } catch (_err) {
+      return {};
+    }
+  };
+
+  const csvEscape = (value) => {
+    const text = String(value ?? '');
+    if (!/[",\n]/.test(text)) {
+      return text;
+    }
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
   registry.renderTopEntityCharts = (root = document) => {
     const canvases = Array.from(root.querySelectorAll('.top-entity-chart'));
     if (!canvases.length || typeof Chart === 'undefined') {
       return;
     }
-
-    const parseJsonArray = (raw) => {
-      if (!raw) {
-        return [];
-      }
-
-      try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (_err) {
-        return [];
-      }
-    };
-
-    const parseJsonObject = (raw) => {
-      if (!raw) {
-        return {};
-      }
-
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          return parsed;
-        }
-        return {};
-      } catch (_err) {
-        return {};
-      }
-    };
 
     const styles = getComputedStyle(document.body);
     const defaultBarColor = (styles.getPropertyValue('--accent') || '#0b6e4f').trim() || '#0b6e4f';
@@ -222,6 +230,73 @@
       });
     }
   };
+
+  const downloadTopEntityCsv = (chartKey) => {
+    const safeKey = String(chartKey || '').trim();
+    if (!safeKey) {
+      return;
+    }
+
+    const canvas = document.querySelector(`#top-entity-chart-${CSS.escape(safeKey)}`);
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      return;
+    }
+
+    const labels = parseJsonArray(canvas.dataset.labels).map((item) => String(item));
+    const values = parseJsonArray(canvas.dataset.values).map((item) => Number(item) || 0);
+    if (!labels.length || !values.length) {
+      return;
+    }
+
+    const panel = canvas.closest('.panel');
+    const title = panel?.querySelector('.panel-header')?.textContent?.trim() || safeKey;
+    const entityColumn = title.match(/^Top\s+\d+\s+(.+?)\s+by\s+/i)?.[1] || 'Entity';
+    const kpiLabel = (canvas.dataset.kpiLabel || 'KPI').trim() || 'KPI';
+
+    const rowCount = Math.min(labels.length, values.length);
+    const lines = [
+      [csvEscape(entityColumn), csvEscape(kpiLabel)].join(','),
+    ];
+
+    for (let i = 0; i < rowCount; i += 1) {
+      lines.push([
+        csvEscape(labels[i]),
+        csvEscape(values[i]),
+      ].join(','));
+    }
+
+    const csv = `${lines.join('\n')}\n`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
+    const normalizedKey = safeKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `top_${normalizedKey}_${timestamp}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!window.__dashboardTopEntityCsvBound) {
+    window.__dashboardTopEntityCsvBound = true;
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const downloadButton = target.closest('.top-entity-download-btn');
+      if (!(downloadButton instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      event.preventDefault();
+      downloadTopEntityCsv(downloadButton.dataset.chartKey || '');
+    });
+  }
 
   window.DashboardCharts = registry;
 })();
