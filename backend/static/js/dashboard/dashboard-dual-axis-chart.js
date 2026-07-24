@@ -14,6 +14,21 @@
     }
   };
 
+  const withAlpha = (color, alpha) => {
+    const raw = String(color || '').trim();
+    const match = raw.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
+    if (!match) {
+      return raw;
+    }
+
+    const hex = match[1];
+    const normalized = hex.length === 3 ? hex.split('').map((ch) => ch + ch).join('') : hex;
+    const r = Number.parseInt(normalized.slice(0, 2), 16);
+    const g = Number.parseInt(normalized.slice(2, 4), 16);
+    const b = Number.parseInt(normalized.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   registry.renderDualAxisChart = (root = document) => {
     const canvas = root.querySelector('#dual-axis-kpi-chart');
     if (!(canvas instanceof HTMLCanvasElement) || typeof Chart === 'undefined') {
@@ -69,7 +84,8 @@
     };
 
     const lineStyles = getComputedStyle(document.body);
-    const leftLineColor = (lineStyles.getPropertyValue('--accent') || '#0b6e4f').trim() || '#0b6e4f';
+    const leftLineColorBase = (lineStyles.getPropertyValue('--accent') || '#0b6e4f').trim() || '#0b6e4f';
+    const leftLineColor = withAlpha(leftLineColorBase, 0.65);
     const rightLineColor = '#d97706';
     const wrapper = canvas.closest('.dual-axis-chart-wrap');
     if (wrapper instanceof HTMLElement) {
@@ -90,7 +106,7 @@
             backgroundColor: 'rgba(11, 110, 79, 0.16)',
             cubicInterpolationMode: 'monotone',
             tension: 0.58,
-            borderWidth: 2,
+            borderWidth: 3,
             pointRadius: 2,
             pointHoverRadius: 4,
           },
@@ -102,7 +118,7 @@
             backgroundColor: 'rgba(217, 119, 6, 0.16)',
             cubicInterpolationMode: 'monotone',
             tension: 0.58,
-            borderWidth: 2,
+            borderWidth: 1.75,
             pointRadius: 2,
             pointHoverRadius: 4,
           },
@@ -146,7 +162,7 @@
               color: '#e3e9e4',
             },
             ticks: {
-              color: leftLineColor,
+              color: leftLineColorBase,
               callback: (value) => formatValue(value, leftKpiKey),
             },
           },

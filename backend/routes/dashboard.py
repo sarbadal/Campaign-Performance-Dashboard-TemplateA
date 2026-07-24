@@ -279,8 +279,6 @@ def dashboard():
     selected_line_granularity = (
         requested_line_granularity if requested_line_granularity in TREND_GRANULARITY_OPTIONS else "daily"
     )
-    if selected_line_kpi_right == selected_line_kpi_left:
-        selected_line_kpi_right = "total_clicks" if selected_line_kpi_left != "total_clicks" else "total_reach"
 
     filters["line_kpi_left"] = selected_line_kpi_left
     filters["line_kpi_right"] = selected_line_kpi_right
