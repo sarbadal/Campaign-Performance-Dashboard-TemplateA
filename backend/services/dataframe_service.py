@@ -7,9 +7,9 @@ from urllib.parse import quote_plus
 
 import pandas as pd
 
-from backend.services.db_service import ensure_sqlite_synced, get_sqlite_connection
+from backend.services.db_service import get_sqlite_connection
 from backend.services.field_mapping_service import apply_field_mapping, load_field_mapping
-from backend.services.mysql_service import ensure_mysql_synced, get_mysql_connection
+from backend.services.mysql_service import get_mysql_connection
 
 
 _DF_CACHE: dict[str, object] = {
@@ -73,7 +73,6 @@ def _read_mysql_table_as_dataframe_sqlalchemy(
 
 @dataclass
 class DataframeRequest:
-    data_file: Path
     db_backend: str
     sqlite_db_file: Path
     mysql_config: dict[str, object]
@@ -84,9 +83,8 @@ class DataframeRequest:
 def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
     """Load campaign data into a reusable pandas DataFrame from configured DB backend."""
     backend = (request.db_backend or "sqlite").strip().lower()
-    source_stat = request.data_file.stat()
-    source_mtime_ns = int(source_stat.st_mtime_ns)
-    source_size = int(source_stat.st_size)
+    source_mtime_ns: int | None = None
+    source_size: int | None = None
 
     now = time.time()
     cached = _DF_CACHE.get("payload")
@@ -104,11 +102,9 @@ def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
         return cached  # type: ignore[return-value]
 
     if backend == "sqlite":
-        ensure_sqlite_synced(csv_file=request.data_file, db_file=request.sqlite_db_file)
         with get_sqlite_connection(request.sqlite_db_file) as conn:
             dataframe = pd.read_sql_query("SELECT * FROM campaign_data", conn)
     elif backend == "mysql":
-        ensure_mysql_synced(csv_file=request.data_file, mysql_config=request.mysql_config)
         table_name = str(request.mysql_config.get("table", "campaign_data"))
         dataframe = _read_mysql_table_as_dataframe_sqlalchemy(request.mysql_config, table_name)
         if dataframe is None:

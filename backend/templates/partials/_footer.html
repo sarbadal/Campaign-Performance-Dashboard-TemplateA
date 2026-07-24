@@ -12,7 +12,7 @@
   </div>
   {% if branding.show_footer_logo %}
   <div class="footer-logo-wrap" aria-label="Footer logo">
-    <img class="footer-logo" src="{{ url_for('static', filename=branding.footer_logo_image_path) }}" alt="Footer logo">
+    <img class="footer-logo" src="{{ static_url(branding.footer_logo_image_path) }}" alt="Footer logo">
   </div>
   {% endif %}
 </footer>

@@ -166,10 +166,16 @@ def fetch_mysql_last_ingested_at(mysql_config: dict[str, object]) -> str | None:
     conn = _connect_mysql(mysql_config)
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT ingested_at_utc FROM {_quote_ident(state_table)} WHERE id = 1"
-            )
-            row = cur.fetchone()
+            try:
+                cur.execute(
+                    f"SELECT ingested_at_utc FROM {_quote_ident(state_table)} WHERE id = 1"
+                )
+                row = cur.fetchone()
+            except Exception as exc:
+                message = str(exc).lower()
+                if "doesn't exist" in message or "does not exist" in message or "unknown table" in message:
+                    return None
+                raise
     finally:
         conn.close()
 

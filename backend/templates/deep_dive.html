@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Deep Dive</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='20260724h') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-layout.css', v='20260724h') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-item.css', v='20260724h') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-table.css', v='20260724h') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-chart.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard-layout.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard-item.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard-table.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard-chart.css', v='20260724h') }}">
 </head>
 <body
   style="--banner-start: {{ branding.banner_gradient_start }}; --banner-mid: {{ branding.banner_gradient_mid }}; --banner-end: {{ branding.banner_gradient_end }}; --font-primary: {{ branding.dashboard_font_family }}; --kpi-label-color: {{ branding.kpi_label_color }}; --kpi-value-color: {{ branding.kpi_value_color }}; --kpi-label-size: {{ branding.kpi_label_font_size }}; --kpi-value-size: {{ branding.kpi_value_font_size }};"
@@ -18,6 +18,6 @@
     {% include "partials/_filters.html" %}
     {% include "partials/_footer.html" %}
   </main>
-  <script src="{{ url_for('static', filename='js/dashboard/dashboard-dropdowns.js', v='20260724q') }}"></script>
+  <script src="{{ static_url('js/dashboard/dashboard-dropdowns.js', v='20260724q') }}"></script>
 </body>
 </html>

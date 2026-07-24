@@ -210,7 +210,6 @@ def _filter_dataframe(
 
 @dashboard_bp.get("/")
 def dashboard():
-    data_file = current_app.config["DATA_FILE"]
     db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
     sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
     mysql_config = {
@@ -229,7 +228,6 @@ def dashboard():
 
     df = get_campaign_dataframe(
         DataframeRequest(
-            data_file=data_file,
             db_backend=db_backend,
             sqlite_db_file=sqlite_db_file,
             mysql_config=mysql_config,
@@ -417,7 +415,6 @@ def dashboard():
 
 @dashboard_bp.get("/deep-dive")
 def deep_dive():
-    data_file = current_app.config["DATA_FILE"]
     db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
     sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
     mysql_config = {
@@ -435,7 +432,6 @@ def deep_dive():
 
     df = get_campaign_dataframe(
         DataframeRequest(
-            data_file=data_file,
             db_backend=db_backend,
             sqlite_db_file=sqlite_db_file,
             mysql_config=mysql_config,

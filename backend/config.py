@@ -27,14 +27,25 @@ def _as_bool(name: str, default: bool) -> bool:
     return default
 
 
+def _as_choice(name: str, default: str, allowed: set[str]) -> str:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in allowed:
+        return raw
+    return default
+
+
 class Config:
     """Application configuration."""
 
     BASE_DIR = Path(__file__).resolve().parent.parent
     load_dotenv(BASE_DIR / ".env")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me").strip() or "dev-secret-change-me"
+    ENV_TYPE = _as_choice("ENV_TYPE", "dev", {"dev", "prod"})
+    STATIC_BUCKET = os.getenv("STATIC_BUCKET", "").strip()
+    STATIC_BASE_URL = os.getenv("STATIC_BASE_URL", "").strip().rstrip("/")
 
-    DATA_FILE = BASE_DIR / "data" / "data.csv"
     DB_BACKEND = os.getenv("DB_BACKEND", "sqlite").strip().lower() or "sqlite"
     SQLITE_DB_FILE = Path(
         os.getenv("SQLITE_DB_FILE", str(BASE_DIR / "data" / "campaign_performance.db"))

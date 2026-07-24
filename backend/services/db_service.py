@@ -158,10 +158,15 @@ def fetch_summary(db_file: Path) -> DbSummary:
 
 def fetch_sqlite_last_ingested_at(db_file: Path) -> str | None:
     """Return latest ingestion timestamp from SQLite state table."""
-    with _connect(db_file) as conn:
-        row = conn.execute(
-            "SELECT ingested_at_utc FROM ingestion_state WHERE id = 1"
-        ).fetchone()
+    try:
+        with _connect(db_file) as conn:
+            row = conn.execute(
+                "SELECT ingested_at_utc FROM ingestion_state WHERE id = 1"
+            ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc).lower():
+            return None
+        raise
 
     if row is None or not row[0]:
         return None

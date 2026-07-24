@@ -90,6 +90,9 @@ Important keys used by the app:
 
 - Data/backend
 	- `SECRET_KEY`
+	- `ENV_TYPE=dev|prod`
+	- `STATIC_BUCKET` (used in `prod` if `STATIC_BASE_URL` is empty)
+	- `STATIC_BASE_URL` (optional full CDN/base URL; when set in `prod`, it is preferred)
 	- `DB_BACKEND=sqlite|mysql`
 	- `SQLITE_DB_FILE`
 	- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
@@ -116,7 +119,9 @@ Important keys used by the app:
 Notes:
 - `LOGO_IMAGE_PATH` and `FOOTER_LOGO_IMAGE_PATH` should be paths under `backend/static/`, for example `img/ogs-logo.gif`.
 - `SHOW_FOOTER_LOGO` accepts: `true/false`, `1/0`, `yes/no`, `on/off`.
-
+- Static serving mode:
+	- `ENV_TYPE=dev`: templates serve assets via Flask local static route.
+	- `ENV_TYPE=prod`: templates serve assets from GCS (`https://storage.googleapis.com/<STATIC_BUCKET>/static/...`) or from `STATIC_BASE_URL/static/...` when `STATIC_BASE_URL` is set.
 ### Dashboard settings (`settings/dashboard_settings.json`)
 
 This JSON controls visible KPIs, selected filter fields, selected top-entity charts, and chart colors.
@@ -179,6 +184,48 @@ Optional filter/chart dimensions used in UI:
 ## Deployment note
 
 `main.py` includes an `entry_point(request)` function for Google Cloud Functions style deployment.
+
+### Deployment script with .env
+
+`deployment.py` reads deployment settings from `.env` and allows CLI overrides.
+All keys present in that `.env` file are also uploaded to Cloud Functions runtime environment variables.
+
+Common `.env` deployment keys:
+
+- `DEPLOY_PROJECT_ID`
+- `DEPLOY_REGION`
+- `DEPLOY_FUNCTION_NAME`
+- `DEPLOY_ENTRY_POINT`
+- `DEPLOY_RUNTIME`
+- `DEPLOY_BUCKET_NAME`
+- `DEPLOY_BUCKET_LOCATION`
+- `DEPLOY_STATIC_DIR`
+- `DEPLOY_SOURCE_DIR`
+- `DEPLOY_ALLOW_UNAUTHENTICATED`
+
+Run deployment using `.env` defaults:
+
+```bash
+python deployment.py --env-file .env
+```
+
+Override a value when needed:
+
+```bash
+python deployment.py --env-file .env --region asia-south1
+```
+
+Preview deployment without executing gcloud actions:
+
+```bash
+python deployment.py --env-file .env --dry-run
+```
+
+Print a compact resolved-settings summary (works with or without dry-run):
+
+```bash
+python deployment.py --env-file .env --dry-run --dry-run-summary
+```
 
 ## Troubleshooting
 

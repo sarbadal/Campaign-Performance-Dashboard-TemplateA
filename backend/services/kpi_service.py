@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from backend.services.dataframe_service import DataframeRequest, get_campaign_dataframe
 from backend.services.kpi_calculation_service import KpiSummary, build_kpi_summary_from_dataframe
@@ -27,7 +26,6 @@ KPI_DEFINITIONS: dict[str, str] = {
 
 @dataclass(frozen=True)
 class KpiSummaryRequest:
-    data_file: Path
     db_backend: str
     sqlite_db_file: Path
     mysql_config: dict[str, object]
@@ -44,7 +42,6 @@ class KpiCardsRequest:
 def build_kpi_summary(request: KpiSummaryRequest) -> KpiSummary:
     df = get_campaign_dataframe(
         DataframeRequest(
-            data_file=request.data_file,
             db_backend=request.db_backend,
             sqlite_db_file=request.sqlite_db_file,
             mysql_config=request.mysql_config,
