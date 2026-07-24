@@ -35,7 +35,7 @@
   ],
   "selected_filter_fields": [
     "campaign_group",
-    "campaign_name",
+    "objective",
     "adset_name"
   ],
   "available_top_entity_charts": [

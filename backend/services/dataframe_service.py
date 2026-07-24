@@ -14,6 +14,8 @@ from backend.services.mysql_service import ensure_mysql_synced, get_mysql_connec
 _DF_CACHE: dict[str, object] = {
     "expires_at": 0.0,
     "backend": None,
+    "source_mtime_ns": None,
+    "source_size": None,
     "payload": None,
 }
 
@@ -35,12 +37,23 @@ class DataframeRequest:
 def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
     """Load campaign data into a reusable pandas DataFrame from configured DB backend."""
     backend = (request.db_backend or "sqlite").strip().lower()
+    source_stat = request.data_file.stat()
+    source_mtime_ns = int(source_stat.st_mtime_ns)
+    source_size = int(source_stat.st_size)
 
     now = time.time()
     cached = _DF_CACHE.get("payload")
     expires_at = float(_DF_CACHE.get("expires_at", 0.0))
     cached_backend = _DF_CACHE.get("backend")
-    if cached is not None and now < expires_at and cached_backend == backend:
+    cached_source_mtime_ns = _DF_CACHE.get("source_mtime_ns")
+    cached_source_size = _DF_CACHE.get("source_size")
+    if (
+        cached is not None
+        and now < expires_at
+        and cached_backend == backend
+        and cached_source_mtime_ns == source_mtime_ns
+        and cached_source_size == source_size
+    ):
         return cached  # type: ignore[return-value]
 
     if backend == "sqlite":
@@ -64,5 +77,7 @@ def get_campaign_dataframe(request: DataframeRequest) -> pd.DataFrame:
 
     _DF_CACHE["payload"] = dataframe
     _DF_CACHE["backend"] = backend
+    _DF_CACHE["source_mtime_ns"] = source_mtime_ns
+    _DF_CACHE["source_size"] = source_size
     _DF_CACHE["expires_at"] = now + max(request.cache_ttl_seconds, 1)
     return dataframe
