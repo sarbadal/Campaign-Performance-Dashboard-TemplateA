@@ -89,6 +89,7 @@ python main.py
 Important keys used by the app:
 
 - Data/backend
+	- `SECRET_KEY`
 	- `DB_BACKEND=sqlite|mysql`
 	- `SQLITE_DB_FILE`
 	- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`

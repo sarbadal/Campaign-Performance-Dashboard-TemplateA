@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
-from flask import Blueprint, current_app, render_template, request, url_for
+from flask import Blueprint, current_app, render_template, request, session, url_for
 
 from backend.services.analytics_service import (
     DualAxisKpiSeriesRequest,
@@ -55,6 +55,8 @@ TREND_GRANULARITY_OPTIONS: dict[str, str] = {
     "quarterly": "Quarterly",
     "yearly": "Yearly",
 }
+
+TOP_LEVEL_FILTERS_SESSION_KEY = "top_level_filters"
 
 
 def _as_clean_str(value: object) -> str:
@@ -121,35 +123,63 @@ def _filter_dataframe(
     df: pd.DataFrame,
     active_filter_fields: list[dict[str, str]],
 ) -> tuple[pd.DataFrame, dict[str, object], dict[str, list[str]]]:
-    requested_date_from = _as_clean_str(request.args.get("date_from", ""))
-    requested_date_to = _as_clean_str(request.args.get("date_to", ""))
+    clear_requested = _as_clean_str(request.args.get("clear_filters", "")).lower() in {"1", "true", "yes"}
+    if clear_requested:
+        session.pop(TOP_LEVEL_FILTERS_SESSION_KEY, None)
+
+    stored_filters_raw = session.get(TOP_LEVEL_FILTERS_SESSION_KEY, {})
+    stored_filters = stored_filters_raw if isinstance(stored_filters_raw, dict) else {}
+
+    def _stored_scalar(name: str) -> str:
+        return _as_clean_str(stored_filters.get(name, ""))
+
     default_date_from, default_date_to = _date_input_defaults(df)
 
     filters = {
-        "date_from": requested_date_from or default_date_from,
-        "date_to": requested_date_to or default_date_to,
+        "date_from": (
+            _as_clean_str(request.args.get("date_from", ""))
+            if "date_from" in request.args
+            else (_stored_scalar("date_from") or default_date_from)
+        ),
+        "date_to": (
+            _as_clean_str(request.args.get("date_to", ""))
+            if "date_to" in request.args
+            else (_stored_scalar("date_to") or default_date_to)
+        ),
     }
 
     options: dict[str, list[str]] = {}
     for field in active_filter_fields:
         key = field["key"]
         column = field["column"]
-        filters[key] = _clean_multi_values(request.args.getlist(key))
+
+        if key in request.args:
+            selected_values = _clean_multi_values(request.args.getlist(key))
+        else:
+            stored_values = stored_filters.get(key, [])
+            if isinstance(stored_values, list):
+                selected_values = _clean_multi_values([str(item) for item in stored_values])
+            else:
+                selected_values = _clean_multi_values([str(stored_values)]) if stored_values else []
+
+        filters[key] = selected_values
         options[key] = _column_options(df, column)
 
     filtered = df.copy()
 
-    if "DATE" in filtered.columns and (requested_date_from or requested_date_to):
+    active_date_from = _as_clean_str(filters.get("date_from", ""))
+    active_date_to = _as_clean_str(filters.get("date_to", ""))
+    if "DATE" in filtered.columns and (active_date_from or active_date_to):
         parsed_dates = pd.to_datetime(filtered["DATE"], errors="coerce")
 
-        if requested_date_from:
-            start = pd.to_datetime(requested_date_from, errors="coerce")
+        if active_date_from:
+            start = pd.to_datetime(active_date_from, errors="coerce")
             if pd.notna(start):
                 filtered = filtered[parsed_dates >= start]
                 parsed_dates = parsed_dates[parsed_dates >= start]
 
-        if requested_date_to:
-            end = pd.to_datetime(requested_date_to, errors="coerce")
+        if active_date_to:
+            end = pd.to_datetime(active_date_to, errors="coerce")
             if pd.notna(end):
                 filtered = filtered[parsed_dates <= end]
 
@@ -162,6 +192,18 @@ def _filter_dataframe(
         chosen = set(selected_values)
         series = filtered[column].fillna("").astype(str).str.strip()
         filtered = filtered[series.isin(chosen)]
+
+    stored_payload: dict[str, object] = {
+        "date_from": filters["date_from"],
+        "date_to": filters["date_to"],
+    }
+    for field in active_filter_fields:
+        key = field["key"]
+        value = filters.get(key) or []
+        stored_payload[key] = value if isinstance(value, list) else []
+
+    session[TOP_LEVEL_FILTERS_SESSION_KEY] = stored_payload
+    session.modified = True
 
     return filtered, filters, options
 
@@ -369,7 +411,7 @@ def dashboard():
         settings_file=str(settings_file),
         branding=branding,
         current_page="dashboard",
-        clear_url=url_for("dashboard.dashboard"),
+        clear_url=url_for("dashboard.dashboard", clear_filters=1),
     )
 
 
@@ -466,5 +508,5 @@ def deep_dive():
         total_rows=int(df.shape[0]),
         branding=branding,
         current_page="deep_dive",
-        clear_url=url_for("dashboard.deep_dive"),
+        clear_url=url_for("dashboard.deep_dive", clear_filters=1),
     )

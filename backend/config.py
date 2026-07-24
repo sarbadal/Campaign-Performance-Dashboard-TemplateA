@@ -32,6 +32,7 @@ class Config:
 
     BASE_DIR = Path(__file__).resolve().parent.parent
     load_dotenv(BASE_DIR / ".env")
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me").strip() or "dev-secret-change-me"
 
     DATA_FILE = BASE_DIR / "data" / "data.csv"
     DB_BACKEND = os.getenv("DB_BACKEND", "sqlite").strip().lower() or "sqlite"
