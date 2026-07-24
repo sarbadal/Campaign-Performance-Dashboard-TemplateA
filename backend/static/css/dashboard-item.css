@@ -188,6 +188,10 @@
   flex-wrap: wrap;
 }
 
+.filters-actions .kpi-download-btn {
+  margin-left: auto;
+}
+
 .btn-apply,
 .btn-clear {
   border-radius: 8px;
@@ -207,6 +211,7 @@
   background: #fff;
   border-color: #d0d9d3;
   color: #2d3a34;
+  cursor: pointer;
 }
 
 .filters-count {
