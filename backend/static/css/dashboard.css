@@ -7,6 +7,11 @@
   --border: #dce3de;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 * { box-sizing: border-box; }
 
 body {

@@ -4,11 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Campaign Performance</title>
-  <link rel="stylesheet" href="{{ static_url('css/dashboard.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard.css', v='20260724i') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard-layout.css', v='20260724h') }}">
-  <link rel="stylesheet" href="{{ static_url('css/dashboard-item.css', v='20260724h') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard-item.css', v='20260724k') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard-table.css', v='20260724h') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard-chart.css', v='20260724h') }}">
+  <style>
+    .multi-dropdown:not([open]) > .multi-menu { display: none !important; }
+    .multi-dropdown[open] > .multi-menu { display: block !important; }
+  </style>
 </head>
 <body
   style="--banner-start: {{ branding.banner_gradient_start }}; --banner-mid: {{ branding.banner_gradient_mid }}; --banner-end: {{ branding.banner_gradient_end }}; --font-primary: {{ branding.dashboard_font_family }}; --kpi-label-color: {{ branding.kpi_label_color }}; --kpi-value-color: {{ branding.kpi_value_color }}; --kpi-label-size: {{ branding.kpi_label_font_size }}; --kpi-value-size: {{ branding.kpi_value_font_size }};"

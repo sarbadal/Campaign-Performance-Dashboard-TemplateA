@@ -208,6 +208,15 @@ def build_runtime_env_vars(deployment_env: dict[str, str]) -> dict[str, str]:
     return dict(deployment_env)
 
 
+def normalize_env_type(raw_value: str) -> str:
+    value = str(raw_value or "").strip().lower()
+    if value in {"prod", "production"}:
+        return "prod"
+    if value in {"dev", "development"}:
+        return "dev"
+    return ""
+
+
 @dataclass(frozen=True)
 class DeployFunctionRequest:
     function_name: str
@@ -394,8 +403,21 @@ def main() -> int:
         static_dir = (project_root / static_dir_value).resolve()
         source_dir = (project_root / source_dir_value).resolve()
         env_vars = build_runtime_env_vars(deployment_env)
-        env_vars.setdefault("FLASK_ENV", "production")
-        env_vars.setdefault("APP_ENV", "production")
+
+        effective_env_type = normalize_env_type(env_vars.get("ENV_TYPE", ""))
+        if not effective_env_type:
+            effective_env_type = normalize_env_type(env_vars.get("APP_ENV", ""))
+        if not effective_env_type:
+            effective_env_type = "prod"
+
+        env_vars["ENV_TYPE"] = effective_env_type
+        if effective_env_type == "prod":
+            env_vars.setdefault("FLASK_ENV", "production")
+            env_vars.setdefault("APP_ENV", "production")
+        else:
+            env_vars.setdefault("FLASK_ENV", "development")
+            env_vars.setdefault("APP_ENV", "development")
+
         env_vars["STATIC_BUCKET"] = bucket_name
 
         if args.dry_run_summary:
@@ -407,6 +429,7 @@ def main() -> int:
                 ("runtime", runtime),
                 ("bucket_name", bucket_name),
                 ("bucket_location", bucket_location),
+                ("effective_env_type", effective_env_type),
                 ("static_dir", str(static_dir)),
                 ("source_dir", str(source_dir)),
                 ("allow_unauthenticated", "true" if allow_unauthenticated else "false"),
