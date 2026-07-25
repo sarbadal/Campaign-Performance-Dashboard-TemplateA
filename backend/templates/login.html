@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign In</title>
+  <link rel="icon" type="image/x-icon" href="{{ static_url('img/favicon.ico', v='20260725a') }}">
+  <link rel="stylesheet" href="{{ static_url('css/login.css', v='20260725b') }}">
+</head>
+<body>
+  <section class="login-card" aria-label="Sign in">
+    <h1 class="login-title">Dashboard Sign In</h1>
+    <p class="login-subtitle">Enter the app password to access dashboard pages.</p>
+
+    <form class="login-form" method="post" action="{{ url_for('dashboard.login') }}">
+      <input type="hidden" name="next" value="{{ next_target }}">
+      <label>
+        <input class="login-input" type="password" name="password" autocomplete="current-password" placeholder="App Password" aria-label="App Password" required>
+      </label>
+
+      {% if error_message %}
+      <p class="login-error">{{ error_message }}</p>
+      {% endif %}
+
+      <button type="submit" class="login-submit">Sign In</button>
+    </form>
+  </section>
+</body>
+</html>

@@ -90,6 +90,8 @@ Important keys used by the app:
 
 - Data/backend
 	- `SECRET_KEY`
+	- `APP_PASSWORD` (optional, enables app sign-in when set)
+	- `APP_PASSWORD_HASH` (optional, preferred over APP_PASSWORD when both are set)
 	- `ENV_TYPE=dev|prod`
 	- `STATIC_BUCKET` (used in `prod` if `STATIC_BASE_URL` is empty)
 	- `STATIC_BASE_URL` (optional full CDN/base URL; when set in `prod`, it is preferred)
@@ -122,6 +124,9 @@ Notes:
 - Static serving mode:
 	- `ENV_TYPE=dev`: templates serve assets via Flask local static route.
 	- `ENV_TYPE=prod`: templates serve assets from GCS (`https://storage.googleapis.com/<STATIC_BUCKET>/static/...`) or from `STATIC_BASE_URL/static/...` when `STATIC_BASE_URL` is set.
+- App sign-in mode:
+	- If either `APP_PASSWORD` or `APP_PASSWORD_HASH` is configured, users must sign in at `/login` before accessing dashboard pages.
+	- `APP_PASSWORD_HASH` should be a Werkzeug-compatible hash string.
 ### Dashboard settings (`settings/dashboard_settings.json`)
 
 This JSON controls visible KPIs, selected filter fields, selected top-entity charts, and chart colors.
@@ -176,6 +181,8 @@ Optional filter/chart dimensions used in UI:
 
 - `GET /` -> dashboard
 - `GET /deep-dive` -> deep dive filter page
+- `GET|POST /login` -> app password sign-in page
+- `POST /logout` -> sign out and clear session auth
 
 ## Analytics behavior summary
 

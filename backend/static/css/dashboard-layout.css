@@ -87,6 +87,15 @@
   font-weight: 700;
 }
 
+.banner-logout-form {
+  margin: 0;
+}
+
+.banner-logout-btn {
+  cursor: pointer;
+  font: inherit;
+}
+
 .banner-logo {
   width: clamp(150px, 22vw, 220px);
   height: auto;

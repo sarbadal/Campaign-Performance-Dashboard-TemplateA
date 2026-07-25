@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hmac
+from functools import wraps
 from io import StringIO
+from urllib.parse import urlparse
 
 import pandas as pd
-from flask import Blueprint, Response, current_app, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash
 
 from backend.services.analytics_service import (
     DualAxisKpiSeriesRequest,
@@ -76,6 +80,7 @@ DEEP_DIVE_TABLE_COLUMN_DEFINITIONS: dict[str, str] = {
 }
 
 TOP_LEVEL_FILTERS_SESSION_KEY = "top_level_filters"
+AUTH_SESSION_KEY = "app_authenticated"
 
 FilterOptionsByField = dict[str, list[str]]
 FilterState = dict[str, object]
@@ -157,6 +162,38 @@ def _format_metric_value(metric_key: str, value: float) -> str:
     if metric_key == "AMOUNT_SPENT":
         return f"{value:,.2f}"
     return f"{int(round(value)):,}"
+
+
+def _is_auth_enabled() -> bool:
+    app_password = _as_clean_str(current_app.config.get("APP_PASSWORD", ""))
+    app_password_hash = _as_clean_str(current_app.config.get("APP_PASSWORD_HASH", ""))
+    return bool(app_password or app_password_hash)
+
+
+def _is_authenticated() -> bool:
+    if not _is_auth_enabled():
+        return True
+    return bool(session.get(AUTH_SESSION_KEY, False))
+
+
+def _is_safe_next_url(target: str) -> bool:
+    parsed = urlparse(target)
+    return not parsed.netloc and parsed.path.startswith("/")
+
+
+def _build_login_redirect():
+    next_url = request.full_path if request.query_string else request.path
+    return redirect(url_for("dashboard.login", next=next_url.rstrip("?")))
+
+
+def _require_authenticated(view_func):
+    @wraps(view_func)
+    def _wrapped(*args, **kwargs):
+        if _is_authenticated():
+            return view_func(*args, **kwargs)
+        return _build_login_redirect()
+
+    return _wrapped
 
 
 def _filter_dataframe(df: pd.DataFrame, active_filter_fields: list[dict[str, str]]) -> FilterDataframeResult:
@@ -245,7 +282,67 @@ def _filter_dataframe(df: pd.DataFrame, active_filter_fields: list[dict[str, str
     return filtered, filters, options
 
 
+@dashboard_bp.route("/login", methods=["GET", "POST"])
+def login():
+    if not _is_auth_enabled():
+        return redirect(url_for("dashboard.dashboard"))
+
+    if _is_authenticated():
+        next_target = _as_clean_str(request.args.get("next", ""))
+        if next_target and _is_safe_next_url(next_target):
+            return redirect(next_target)
+        return redirect(url_for("dashboard.dashboard"))
+
+    next_target = _as_clean_str(request.args.get("next", ""))
+    error_message = ""
+
+    if request.method == "POST":
+        entered_password = _as_clean_str(request.form.get("password", ""))
+        posted_next = _as_clean_str(request.form.get("next", ""))
+        if posted_next:
+            next_target = posted_next
+
+        configured_hash = _as_clean_str(current_app.config.get("APP_PASSWORD_HASH", ""))
+        configured_plain = _as_clean_str(current_app.config.get("APP_PASSWORD", ""))
+
+        password_ok = False
+        if configured_hash:
+            password_ok = check_password_hash(configured_hash, entered_password)
+        elif configured_plain:
+            password_ok = hmac.compare_digest(configured_plain, entered_password)
+
+        if password_ok:
+            session[AUTH_SESSION_KEY] = True
+            session.modified = True
+            if next_target and _is_safe_next_url(next_target):
+                return redirect(next_target)
+            return redirect(url_for("dashboard.dashboard"))
+
+        error_message = "Invalid app password."
+
+    if next_target and not _is_safe_next_url(next_target):
+        next_target = ""
+
+    return render_template(
+        "login.html",
+        error_message=error_message,
+        next_target=next_target,
+    )
+
+
+@dashboard_bp.post("/logout")
+def logout():
+    session.pop(AUTH_SESSION_KEY, None)
+    session.pop(TOP_LEVEL_FILTERS_SESSION_KEY, None)
+    session.modified = True
+
+    if _is_auth_enabled():
+        return redirect(url_for("dashboard.login"))
+    return redirect(url_for("dashboard.dashboard"))
+
+
 @dashboard_bp.get("/")
+@_require_authenticated
 def dashboard():
     db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
     sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
@@ -443,12 +540,14 @@ def dashboard():
         kpi_options=KPI_DEFINITIONS,
         settings_file=str(settings_file),
         branding=branding,
+        app_auth_enabled=_is_auth_enabled(),
         current_page="dashboard",
         clear_url=url_for("dashboard.dashboard", clear_filters=1),
     )
 
 
 @dashboard_bp.get("/deep-dive")
+@_require_authenticated
 def deep_dive():
     db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
     sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
@@ -784,12 +883,14 @@ def deep_dive():
         filtered_rows=int(filtered_df.shape[0]),
         total_rows=int(df.shape[0]),
         branding=branding,
+        app_auth_enabled=_is_auth_enabled(),
         current_page="deep_dive",
         clear_url=url_for("dashboard.deep_dive", clear_filters=1),
     )
 
 
 @dashboard_bp.get("/deep-dive/download-csv")
+@_require_authenticated
 def deep_dive_download_csv() -> Response:
     db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
     sqlite_db_file = current_app.config["SQLITE_DB_FILE"]

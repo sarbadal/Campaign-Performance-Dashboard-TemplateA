@@ -42,6 +42,8 @@ class Config:
     BASE_DIR = Path(__file__).resolve().parent.parent
     load_dotenv(BASE_DIR / ".env")
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me").strip() or "dev-secret-change-me"
+    APP_PASSWORD = os.getenv("APP_PASSWORD", "").strip()
+    APP_PASSWORD_HASH = os.getenv("APP_PASSWORD_HASH", "").strip()
     ENV_TYPE = _as_choice("ENV_TYPE", "dev", {"dev", "prod"})
     STATIC_BUCKET = os.getenv("STATIC_BUCKET", "").strip()
     STATIC_BASE_URL = os.getenv("STATIC_BASE_URL", "").strip().rstrip("/")

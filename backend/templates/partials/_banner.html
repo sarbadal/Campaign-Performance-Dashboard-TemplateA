@@ -7,6 +7,11 @@
       <div class="banner-nav" aria-label="Page navigation">
         <a class="banner-nav-link {% if current_page == 'dashboard' %}is-active{% endif %}" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
         <a class="banner-nav-link {% if current_page == 'deep_dive' %}is-active{% endif %}" href="{{ url_for('dashboard.deep_dive') }}">Deep Dive</a>
+        {% if app_auth_enabled %}
+        <form class="banner-logout-form" method="post" action="{{ url_for('dashboard.logout') }}">
+          <button type="submit" class="banner-nav-link banner-logout-btn">Logout</button>
+        </form>
+        {% endif %}
       </div>
     </div>
     <img
