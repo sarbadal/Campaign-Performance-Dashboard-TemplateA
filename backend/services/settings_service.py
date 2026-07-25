@@ -42,6 +42,12 @@ DEFAULT_SELECTED_DEEP_DIVE_TABLE_COLUMNS = [
     "REACH",
 ]
 
+DEFAULT_SELECTED_DEEP_DIVE_HIERARCHY_FIELDS = [
+    "PLATFORM",
+    "CAMPAIGN_GROUP",
+    "ADSET_NAME",
+]
+
 
 def load_platform_chart_colors(settings_file: Path) -> dict[str, str]:
     """Load optional platform color mapping for Top Platforms chart.
@@ -422,3 +428,66 @@ def load_deep_dive_default_page_size(
         return fallback
 
     return parsed
+
+
+def load_selected_deep_dive_hierarchy_fields(
+    settings_file: Path,
+    allowed_field_keys: list[str],
+    max_levels: int = 3,
+) -> list[str]:
+    """Load selected deep-dive hierarchy field keys from JSON settings file."""
+    if not allowed_field_keys:
+        return []
+
+    allowed: list[str] = []
+    for item in allowed_field_keys:
+        key = str(item).strip()
+        if key and key not in allowed:
+            allowed.append(key)
+
+    fallback = [key for key in DEFAULT_SELECTED_DEEP_DIVE_HIERARCHY_FIELDS if key in allowed]
+    if not fallback:
+        fallback = allowed[:max(max_levels, 1)]
+
+    if not settings_file.exists():
+        return fallback[:max(max_levels, 1)]
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return fallback[:max(max_levels, 1)]
+
+    available_raw = payload.get("available_deep_dive_hierarchy_fields")
+    available = set(allowed)
+    if isinstance(available_raw, list):
+        configured_available: set[str] = set()
+        for item in available_raw:
+            if not isinstance(item, str):
+                continue
+            key = item.strip()
+            if key in available:
+                configured_available.add(key)
+        if configured_available:
+            available = configured_available
+
+    selected_raw = payload.get("selected_deep_dive_hierarchy_fields")
+    if not isinstance(selected_raw, list):
+        return [key for key in fallback if key in available][:max(max_levels, 1)]
+
+    selected: list[str] = []
+    for item in selected_raw:
+        if not isinstance(item, str):
+            continue
+        key = item.strip()
+        if not key or key in selected:
+            continue
+        if key not in available:
+            continue
+        selected.append(key)
+        if len(selected) >= max(max_levels, 1):
+            break
+
+    if selected:
+        return selected
+
+    return [key for key in fallback if key in available][:max(max_levels, 1)]

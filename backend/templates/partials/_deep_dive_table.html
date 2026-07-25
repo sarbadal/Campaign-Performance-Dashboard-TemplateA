@@ -1,10 +1,93 @@
 <section class="panel" aria-label="Deep dive data table">
+  {% macro render_nodes(nodes, columns, level=1) %}
+    {% for node in nodes %}
+    <details class="drill-node level-{{ node.level }}" {% if node.level <= 2 %}open{% endif %}>
+      <summary>
+        <span class="drill-title">{{ node.field_label }}: {{ node.label }}</span>
+        <span class="drill-meta">Rows: {{ node.row_count }}</span>
+        {% for metric in node.metrics %}
+        <span class="drill-meta">{{ metric.label }}: {{ metric.value }}</span>
+        {% endfor %}
+      </summary>
+
+      {% if node.children %}
+      <div class="drill-children">
+        {{ render_nodes(node.children, columns, level + 1) }}
+      </div>
+      {% elif node.rows %}
+      <div class="table-wrap drill-leaf-table-wrap">
+        <table class="data-table" aria-label="Deep dive drill-down rows">
+          <thead>
+            <tr>
+              {% for column in columns %}
+              <th scope="col">{{ column.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in node.rows %}
+            <tr>
+              {% for column in columns %}
+              <td>{{ row[column.key] }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </details>
+    {% endfor %}
+  {% endmacro %}
+
   <div class="panel-header">Deep Dive Campaign Data</div>
   <div class="date-range">
     Showing {{ pagination.start_row }} to {{ pagination.end_row }} of {{ deep_dive_total_rows }} rows
   </div>
 
-  {% if deep_dive_columns and deep_dive_rows %}
+  <div class="filters-actions" style="margin-top: 8px;">
+    <span class="filter-label">View</span>
+    {% if deep_dive_view_mode == "hierarchy" %}
+    <span class="btn-apply" aria-current="true">Hierarchy</span>
+    <a class="btn-clear" href="{{ deep_dive_view_links.flat_url }}">Flat Table</a>
+    {% else %}
+    <a class="btn-clear" href="{{ deep_dive_view_links.hierarchy_url }}">Hierarchy</a>
+    <span class="btn-apply" aria-current="true">Flat Table</span>
+    {% endif %}
+
+    <span class="filter-label">All Rows</span>
+    {% if pagination.all_rows_enabled %}
+    <span class="btn-apply" aria-current="true">On</span>
+    <a class="btn-clear" href="{{ pagination.all_rows_off_url }}">Off</a>
+    {% else %}
+    {% if pagination.all_rows_on_url %}
+    <a class="btn-clear" href="{{ pagination.all_rows_on_url }}">On</a>
+    {% endif %}
+    <span class="btn-apply" aria-current="true">Off</span>
+    {% endif %}
+
+    {% if deep_dive_download_current_csv_url %}
+    <a class="btn-clear" href="{{ deep_dive_download_current_csv_url }}">Download Visible Rows CSV</a>
+    {% endif %}
+    {% if deep_dive_download_all_csv_url %}
+    <a class="btn-clear" href="{{ deep_dive_download_all_csv_url }}">Download All Filtered Rows CSV</a>
+    {% endif %}
+  </div>
+
+  {% if deep_dive_view_mode == "hierarchy" and deep_dive_hierarchy_fields %}
+  <div class="date-range" style="margin-top: 6px;">
+    Drill-down hierarchy:
+    {% for field in deep_dive_hierarchy_fields %}
+      {{ field.label }}{% if not loop.last %} >{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if deep_dive_view_mode == "hierarchy" and deep_dive_columns and deep_dive_drill_nodes %}
+  <div class="drill-tree" aria-label="Deep dive hierarchical drill-down">
+    {{ render_nodes(deep_dive_drill_nodes, deep_dive_columns) }}
+  </div>
+  {% elif deep_dive_columns and deep_dive_rows %}
   <div class="table-wrap">
     <table class="data-table" aria-label="Deep dive campaign data table">
       <thead>
@@ -25,6 +108,11 @@
       </tbody>
     </table>
   </div>
+  {% else %}
+  <div class="empty-state">No rows available for the current filters.</div>
+  {% endif %}
+
+  {% if deep_dive_columns and deep_dive_rows %}
   <div class="filters-actions" style="margin-top: 10px;">
     {% if pagination.prev_url %}
     <a class="btn-clear" href="{{ pagination.prev_url }}">Previous</a>
@@ -54,7 +142,5 @@
       {% endif %}
     {% endfor %}
   </div>
-  {% else %}
-  <div class="empty-state">No rows available for the current filters.</div>
   {% endif %}
 </section>

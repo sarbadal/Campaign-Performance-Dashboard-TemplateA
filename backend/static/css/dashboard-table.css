@@ -32,3 +32,49 @@
   color: var(--muted);
   font-size: 0.9rem;
 }
+
+.drill-tree {
+  margin-top: 10px;
+}
+
+.drill-node {
+  border: 1px solid #e2e9e4;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  background: #fbfcfa;
+}
+
+.drill-node > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.drill-node > summary::-webkit-details-marker {
+  display: none;
+}
+
+.drill-title {
+  font-weight: 700;
+  color: #2d3a34;
+}
+
+.drill-meta {
+  font-size: 0.84rem;
+  color: #56605b;
+}
+
+.drill-children {
+  padding: 0 10px 10px;
+}
+
+.drill-leaf-table-wrap {
+  margin: 0 10px 10px;
+  border: 1px solid #e6ede8;
+  border-radius: 8px;
+  background: #fff;
+}

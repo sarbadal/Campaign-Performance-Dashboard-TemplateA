@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from io import StringIO
 
 import pandas as pd
-from flask import Blueprint, current_app, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, render_template, request, session, url_for
 
 from backend.services.analytics_service import (
     DualAxisKpiSeriesRequest,
@@ -22,6 +23,7 @@ from backend.services.mysql_service import fetch_mysql_last_ingested_at
 from backend.services.settings_service import (
     load_deep_dive_default_page_size,
     load_platform_chart_colors,
+    load_selected_deep_dive_hierarchy_fields,
     load_selected_deep_dive_table_columns,
     load_selected_filter_fields,
     load_selected_kpis,
@@ -142,6 +144,19 @@ def _as_positive_int(value: object, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return parsed if parsed > 0 else default
+
+
+def _normalize_deep_dive_view(value: object) -> str:
+    raw = _as_clean_str(value).lower()
+    if raw in {"flat", "table", "rows"}:
+        return "flat"
+    return "hierarchy"
+
+
+def _format_metric_value(metric_key: str, value: float) -> str:
+    if metric_key == "AMOUNT_SPENT":
+        return f"{value:,.2f}"
+    return f"{int(round(value)):,}"
 
 
 def _filter_dataframe(
@@ -495,6 +510,9 @@ def deep_dive():
         if column_key in filtered_df.columns
     ]
 
+    view_mode = _normalize_deep_dive_view(request.args.get("view", "hierarchy"))
+    all_rows_enabled = _as_clean_str(request.args.get("all_rows", "")).lower() in {"1", "true", "yes", "on"}
+
     base_page_size_options = [50, 100, 200]
     default_page_size = load_deep_dive_default_page_size(
         settings_file=settings_file,
@@ -506,6 +524,13 @@ def deep_dive():
     page = _as_positive_int(request.args.get("page", "1"), 1)
 
     deep_dive_total_rows = int(filtered_df.shape[0])
+    if deep_dive_total_rows > 0:
+        page_size_options = sorted(set(page_size_options + [deep_dive_total_rows]))
+        if all_rows_enabled:
+            page_size = deep_dive_total_rows
+        elif page_size_requested == deep_dive_total_rows:
+            page_size = deep_dive_total_rows
+
     deep_dive_table_df = filtered_df.copy()
     if "DATE" in deep_dive_table_df.columns:
         deep_dive_table_df["__parsed_date"] = pd.to_datetime(deep_dive_table_df["DATE"], errors="coerce")
@@ -523,8 +548,27 @@ def deep_dive():
     end_index = start_index + page_size
     deep_dive_table_df = deep_dive_table_df.iloc[start_index:end_index]
 
-    deep_dive_rows: list[dict[str, str]] = []
-    for _, row in deep_dive_table_df.iterrows():
+    metric_column_keys = [
+        key for key in ["AMOUNT_SPENT", "IMPRESSIONS", "CLICKS", "CONVERSIONS", "LEADS", "REACH"]
+        if key in selected_table_columns
+    ]
+    available_hierarchy_fields = [
+        key for key in ["PLATFORM", "CAMPAIGN_GROUP", "CAMPAIGN_NAME", "ADSET_NAME", "AD_NAME", "DATE"]
+        if key in filtered_df.columns and key not in metric_column_keys
+    ]
+    hierarchy_columns = load_selected_deep_dive_hierarchy_fields(
+        settings_file=settings_file,
+        allowed_field_keys=available_hierarchy_fields,
+        max_levels=3,
+    )
+
+    if not hierarchy_columns:
+        hierarchy_columns = [
+            key for key in available_hierarchy_fields
+            if key not in metric_column_keys
+        ][:2]
+
+    def _row_to_record(row: pd.Series) -> dict[str, str]:
         record: dict[str, str] = {}
         for column_key in selected_table_columns:
             value = row[column_key]
@@ -532,7 +576,65 @@ def deep_dive():
                 record[column_key] = ""
             else:
                 record[column_key] = str(value)
-        deep_dive_rows.append(record)
+        return record
+
+    def _build_drill_nodes(dataframe: pd.DataFrame, dimensions: list[str], level: int = 1) -> list[dict[str, object]]:
+        if dataframe.empty:
+            return []
+        if not dimensions:
+            return []
+
+        current_dimension = dimensions[0]
+        grouped = dataframe.copy()
+        grouped["__group_label"] = (
+            grouped[current_dimension].fillna("").astype(str).str.strip().replace("", "(blank)")
+        )
+
+        nodes: list[dict[str, object]] = []
+        for group_label, group_df in grouped.groupby("__group_label", sort=True):
+            subgroup = group_df.drop(columns=["__group_label"])
+            metrics = [
+                {
+                    "key": metric_key,
+                    "label": DEEP_DIVE_TABLE_COLUMN_DEFINITIONS.get(metric_key, metric_key),
+                    "value": _format_metric_value(
+                        metric_key,
+                        float(pd.to_numeric(subgroup[metric_key], errors="coerce").fillna(0).sum()),
+                    ),
+                }
+                for metric_key in metric_column_keys
+                if metric_key in subgroup.columns
+            ]
+
+            node: dict[str, object] = {
+                "level": level,
+                "field_label": DEEP_DIVE_TABLE_COLUMN_DEFINITIONS.get(current_dimension, current_dimension),
+                "label": str(group_label),
+                "row_count": int(subgroup.shape[0]),
+                "metrics": metrics,
+                "children": [],
+                "rows": [],
+            }
+
+            if len(dimensions) > 1:
+                node["children"] = _build_drill_nodes(subgroup, dimensions[1:], level + 1)
+            else:
+                node["rows"] = [_row_to_record(row) for _, row in subgroup.iterrows()]
+
+            nodes.append(node)
+
+        return nodes
+
+    deep_dive_rows: list[dict[str, str]] = [_row_to_record(row) for _, row in deep_dive_table_df.iterrows()]
+    deep_dive_drill_nodes = (
+        _build_drill_nodes(deep_dive_table_df, hierarchy_columns)
+        if view_mode == "hierarchy"
+        else []
+    )
+    deep_dive_hierarchy_fields = [
+        {"key": key, "label": DEEP_DIVE_TABLE_COLUMN_DEFINITIONS.get(key, key)}
+        for key in hierarchy_columns
+    ]
 
     args_multi = request.args.to_dict(flat=False)
     args_multi.pop("clear_filters", None)
@@ -541,13 +643,50 @@ def deep_dive():
         page_params = {key: list(values) for key, values in args_multi.items()}
         page_params["page"] = [str(max(target_page, 1))]
         page_params["page_size"] = [str(page_size)]
+        page_params["view"] = [view_mode]
+        page_params["all_rows"] = ["1" if all_rows_enabled else "0"]
         return url_for("dashboard.deep_dive", **page_params)
 
     def _build_page_size_url(target_page_size: int) -> str:
         page_params = {key: list(values) for key, values in args_multi.items()}
         page_params["page"] = ["1"]
         page_params["page_size"] = [str(target_page_size)]
+        page_params["view"] = [view_mode]
+        page_params["all_rows"] = ["0"]
         return url_for("dashboard.deep_dive", **page_params)
+
+    def _build_view_url(target_view: str) -> str:
+        page_params = {key: list(values) for key, values in args_multi.items()}
+        page_params["page"] = ["1"]
+        page_params["view"] = [target_view]
+        page_params["page_size"] = [str(page_size)]
+        page_params["all_rows"] = ["1" if all_rows_enabled else "0"]
+        return url_for("dashboard.deep_dive", **page_params)
+
+    def _build_all_rows_url(enable: bool) -> str:
+        page_params = {key: list(values) for key, values in args_multi.items()}
+        page_params["page"] = ["1"]
+        page_params["view"] = [view_mode]
+        if enable and deep_dive_total_rows > 0:
+            page_params["all_rows"] = ["1"]
+            page_params["page_size"] = [str(deep_dive_total_rows)]
+        else:
+            page_params["all_rows"] = ["0"]
+            page_params["page_size"] = [str(default_page_size)]
+        return url_for("dashboard.deep_dive", **page_params)
+
+    def _build_download_csv_url(download_all: bool) -> str:
+        page_params = {key: list(values) for key, values in args_multi.items()}
+        page_params["view"] = [view_mode]
+        if download_all and deep_dive_total_rows > 0:
+            page_params["page"] = ["1"]
+            page_params["page_size"] = [str(deep_dive_total_rows)]
+            page_params["all_rows"] = ["1"]
+        else:
+            page_params["page"] = [str(page)]
+            page_params["page_size"] = [str(page_size)]
+            page_params["all_rows"] = ["1" if all_rows_enabled else "0"]
+        return url_for("dashboard.deep_dive_download_csv", **page_params)
 
     page_start = max(1, page - 2)
     page_end = min(total_pages, page + 2)
@@ -579,7 +718,17 @@ def deep_dive():
         "next_url": _build_page_url(page + 1) if page < total_pages else "",
         "page_links": page_links,
         "page_size_links": page_size_links,
+        "all_rows_enabled": bool(all_rows_enabled and deep_dive_total_rows > 0),
+        "all_rows_on_url": _build_all_rows_url(True) if deep_dive_total_rows > 0 else "",
+        "all_rows_off_url": _build_all_rows_url(False),
     }
+
+    view_links = {
+        "hierarchy_url": _build_view_url("hierarchy"),
+        "flat_url": _build_view_url("flat"),
+    }
+    deep_dive_download_current_csv_url = _build_download_csv_url(download_all=False)
+    deep_dive_download_all_csv_url = _build_download_csv_url(download_all=True)
 
     last_updated_display = _resolve_last_updated_display(
         db_backend=db_backend,
@@ -623,12 +772,125 @@ def deep_dive():
         filter_options=filter_options,
         deep_dive_columns=deep_dive_columns,
         deep_dive_rows=deep_dive_rows,
+        deep_dive_drill_nodes=deep_dive_drill_nodes,
+        deep_dive_hierarchy_fields=deep_dive_hierarchy_fields,
+        deep_dive_view_mode=view_mode,
+        deep_dive_view_links=view_links,
+        deep_dive_download_current_csv_url=deep_dive_download_current_csv_url,
+        deep_dive_download_all_csv_url=deep_dive_download_all_csv_url,
         deep_dive_total_rows=deep_dive_total_rows,
         deep_dive_page_size=page_size,
+        deep_dive_all_rows_enabled=bool(all_rows_enabled and deep_dive_total_rows > 0),
         pagination=pagination,
         filtered_rows=int(filtered_df.shape[0]),
         total_rows=int(df.shape[0]),
         branding=branding,
         current_page="deep_dive",
         clear_url=url_for("dashboard.deep_dive", clear_filters=1),
+    )
+
+
+@dashboard_bp.get("/deep-dive/download-csv")
+def deep_dive_download_csv() -> Response:
+    db_backend = str(current_app.config.get("DB_BACKEND", "sqlite"))
+    sqlite_db_file = current_app.config["SQLITE_DB_FILE"]
+    mysql_config = {
+        "host": current_app.config.get("MYSQL_HOST", "127.0.0.1"),
+        "port": int(current_app.config.get("MYSQL_PORT", 3306)),
+        "user": current_app.config.get("MYSQL_USER", "root"),
+        "password": current_app.config.get("MYSQL_PASSWORD", ""),
+        "database": current_app.config.get("MYSQL_DATABASE", "campaign_performance"),
+        "table": current_app.config.get("MYSQL_TABLE", "campaign_data"),
+        "state_table": current_app.config.get("MYSQL_STATE_TABLE", "ingestion_state"),
+    }
+    settings_file = current_app.config["DASHBOARD_SETTINGS_FILE"]
+    field_mapping_file = current_app.config["FIELD_MAPPING_FILE"]
+    cache_ttl_seconds = int(current_app.config.get("KPI_CACHE_TTL_SECONDS", 300))
+
+    df = get_campaign_dataframe(
+        DataframeRequest(
+            db_backend=db_backend,
+            sqlite_db_file=sqlite_db_file,
+            mysql_config=mysql_config,
+            field_mapping_file=field_mapping_file,
+            cache_ttl_seconds=cache_ttl_seconds,
+        )
+    )
+
+    selected_filter_keys = load_selected_filter_fields(
+        settings_file=settings_file,
+        allowed_fields=list(FILTER_FIELD_DEFINITIONS.keys()),
+        max_filters=3,
+    )
+    active_filter_fields: list[dict[str, str]] = []
+    for key in selected_filter_keys:
+        definition = FILTER_FIELD_DEFINITIONS.get(key)
+        if definition is None:
+            continue
+        active_filter_fields.append(
+            {
+                "key": key,
+                "label": definition["label"],
+                "column": definition["column"],
+            }
+        )
+
+    filtered_df, _, _ = _filter_dataframe(df, active_filter_fields)
+
+    selected_deep_dive_column_keys = load_selected_deep_dive_table_columns(
+        settings_file=settings_file,
+        allowed_column_keys=list(DEEP_DIVE_TABLE_COLUMN_DEFINITIONS.keys()),
+        max_columns=12,
+    )
+    selected_table_columns = [
+        column_key
+        for column_key in selected_deep_dive_column_keys
+        if column_key in filtered_df.columns
+    ]
+
+    table_df = filtered_df.copy()
+    if "DATE" in table_df.columns:
+        table_df["__parsed_date"] = pd.to_datetime(table_df["DATE"], errors="coerce")
+        table_df = table_df.sort_values("__parsed_date", ascending=False, na_position="last")
+
+    if selected_table_columns:
+        table_df = table_df.loc[:, selected_table_columns]
+    else:
+        table_df = table_df.head(0)
+
+    deep_dive_total_rows = int(table_df.shape[0])
+    all_rows_enabled = _as_clean_str(request.args.get("all_rows", "")).lower() in {"1", "true", "yes", "on"}
+
+    default_page_size = load_deep_dive_default_page_size(
+        settings_file=settings_file,
+        default_page_size=100,
+    )
+    base_page_size_options = [50, 100, 200]
+    page_size_options = sorted(set(base_page_size_options + [default_page_size]))
+    if deep_dive_total_rows > 0:
+        page_size_options = sorted(set(page_size_options + [deep_dive_total_rows]))
+
+    page_size_requested = _as_positive_int(request.args.get("page_size", str(default_page_size)), default_page_size)
+    page_size = page_size_requested if page_size_requested in page_size_options else default_page_size
+    if all_rows_enabled and deep_dive_total_rows > 0:
+        page_size = deep_dive_total_rows
+
+    if not all_rows_enabled:
+        page = _as_positive_int(request.args.get("page", "1"), 1)
+        total_pages = max((deep_dive_total_rows + page_size - 1) // page_size, 1)
+        page = min(page, total_pages)
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+        table_df = table_df.iloc[start_index:end_index]
+
+    export_df = table_df.rename(columns=DEEP_DIVE_TABLE_COLUMN_DEFINITIONS)
+    csv_buffer = StringIO()
+    export_df.to_csv(csv_buffer, index=False)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"deep_dive_table_{timestamp}.csv"
+    return Response(
+        csv_buffer.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

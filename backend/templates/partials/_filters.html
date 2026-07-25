@@ -11,6 +11,7 @@
       </label>
       {% if current_page == "deep_dive" and deep_dive_page_size is defined %}
       <input type="hidden" name="page_size" value="{{ deep_dive_page_size }}">
+      <input type="hidden" name="all_rows" value="{{ '1' if deep_dive_all_rows_enabled else '0' }}">
       {% endif %}
       {% for field in active_filter_fields %}
       <div class="filter-field">
