@@ -9,6 +9,9 @@
         <span class="filter-label">Date To</span>
         <input type="date" name="date_to" value="{{ filters.date_to }}">
       </label>
+      {% if current_page == "deep_dive" and deep_dive_page_size is defined %}
+      <input type="hidden" name="page_size" value="{{ deep_dive_page_size }}">
+      {% endif %}
       {% for field in active_filter_fields %}
       <div class="filter-field">
         <span class="filter-label">{{ field.label }}</span>

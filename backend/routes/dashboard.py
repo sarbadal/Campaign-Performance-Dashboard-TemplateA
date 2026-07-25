@@ -20,7 +20,9 @@ from backend.services.kpi_calculation_service import build_kpi_summary_from_data
 from backend.services.kpi_service import KPI_DEFINITIONS, KpiCardsRequest, build_kpi_cards
 from backend.services.mysql_service import fetch_mysql_last_ingested_at
 from backend.services.settings_service import (
+    load_deep_dive_default_page_size,
     load_platform_chart_colors,
+    load_selected_deep_dive_table_columns,
     load_selected_filter_fields,
     load_selected_kpis,
     load_selected_top_entity_charts,
@@ -54,6 +56,21 @@ TREND_GRANULARITY_OPTIONS: dict[str, str] = {
     "monthly": "Monthly",
     "quarterly": "Quarterly",
     "yearly": "Yearly",
+}
+
+DEEP_DIVE_TABLE_COLUMN_DEFINITIONS: dict[str, str] = {
+    "DATE": "Date",
+    "CAMPAIGN_NAME": "Campaign",
+    "CAMPAIGN_GROUP": "Campaign Group",
+    "PLATFORM": "Platform",
+    "ADSET_NAME": "Adset",
+    "AD_NAME": "Ad Name",
+    "AMOUNT_SPENT": "Spend",
+    "IMPRESSIONS": "Impressions",
+    "CLICKS": "Clicks",
+    "CONVERSIONS": "Conversions",
+    "LEADS": "Leads",
+    "REACH": "Reach",
 }
 
 TOP_LEVEL_FILTERS_SESSION_KEY = "top_level_filters"
@@ -117,6 +134,14 @@ def _resolve_last_updated_display(
     else:
         raw = fetch_sqlite_last_ingested_at(sqlite_db_file)
     return _format_last_updated(raw)
+
+
+def _as_positive_int(value: object, default: int) -> int:
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
 
 
 def _filter_dataframe(
@@ -458,6 +483,104 @@ def deep_dive():
 
     filtered_df, filters, filter_options = _filter_dataframe(df, active_filter_fields)
     summary = build_kpi_summary_from_dataframe(filtered_df)
+
+    selected_deep_dive_column_keys = load_selected_deep_dive_table_columns(
+        settings_file=settings_file,
+        allowed_column_keys=list(DEEP_DIVE_TABLE_COLUMN_DEFINITIONS.keys()),
+        max_columns=12,
+    )
+    deep_dive_columns = [
+        {"key": column_key, "label": DEEP_DIVE_TABLE_COLUMN_DEFINITIONS[column_key]}
+        for column_key in selected_deep_dive_column_keys
+        if column_key in filtered_df.columns
+    ]
+
+    base_page_size_options = [50, 100, 200]
+    default_page_size = load_deep_dive_default_page_size(
+        settings_file=settings_file,
+        default_page_size=100,
+    )
+    page_size_options = sorted(set(base_page_size_options + [default_page_size]))
+    page_size_requested = _as_positive_int(request.args.get("page_size", str(default_page_size)), default_page_size)
+    page_size = page_size_requested if page_size_requested in page_size_options else default_page_size
+    page = _as_positive_int(request.args.get("page", "1"), 1)
+
+    deep_dive_total_rows = int(filtered_df.shape[0])
+    deep_dive_table_df = filtered_df.copy()
+    if "DATE" in deep_dive_table_df.columns:
+        deep_dive_table_df["__parsed_date"] = pd.to_datetime(deep_dive_table_df["DATE"], errors="coerce")
+        deep_dive_table_df = deep_dive_table_df.sort_values("__parsed_date", ascending=False, na_position="last")
+
+    selected_table_columns = [column["key"] for column in deep_dive_columns]
+    if selected_table_columns:
+        deep_dive_table_df = deep_dive_table_df.loc[:, selected_table_columns]
+    else:
+        deep_dive_table_df = deep_dive_table_df.head(0)
+
+    total_pages = max((deep_dive_total_rows + page_size - 1) // page_size, 1)
+    page = min(page, total_pages)
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    deep_dive_table_df = deep_dive_table_df.iloc[start_index:end_index]
+
+    deep_dive_rows: list[dict[str, str]] = []
+    for _, row in deep_dive_table_df.iterrows():
+        record: dict[str, str] = {}
+        for column_key in selected_table_columns:
+            value = row[column_key]
+            if pd.isna(value):
+                record[column_key] = ""
+            else:
+                record[column_key] = str(value)
+        deep_dive_rows.append(record)
+
+    args_multi = request.args.to_dict(flat=False)
+    args_multi.pop("clear_filters", None)
+
+    def _build_page_url(target_page: int) -> str:
+        page_params = {key: list(values) for key, values in args_multi.items()}
+        page_params["page"] = [str(max(target_page, 1))]
+        page_params["page_size"] = [str(page_size)]
+        return url_for("dashboard.deep_dive", **page_params)
+
+    def _build_page_size_url(target_page_size: int) -> str:
+        page_params = {key: list(values) for key, values in args_multi.items()}
+        page_params["page"] = ["1"]
+        page_params["page_size"] = [str(target_page_size)]
+        return url_for("dashboard.deep_dive", **page_params)
+
+    page_start = max(1, page - 2)
+    page_end = min(total_pages, page + 2)
+    page_links = [
+        {
+            "page": page_number,
+            "url": _build_page_url(page_number),
+            "is_current": page_number == page,
+        }
+        for page_number in range(page_start, page_end + 1)
+    ]
+
+    page_size_links = [
+        {
+            "size": size,
+            "url": _build_page_size_url(size),
+            "is_current": size == page_size,
+        }
+        for size in page_size_options
+    ]
+
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "start_row": start_index + 1 if deep_dive_total_rows > 0 else 0,
+        "end_row": start_index + len(deep_dive_rows),
+        "prev_url": _build_page_url(page - 1) if page > 1 else "",
+        "next_url": _build_page_url(page + 1) if page < total_pages else "",
+        "page_links": page_links,
+        "page_size_links": page_size_links,
+    }
+
     last_updated_display = _resolve_last_updated_display(
         db_backend=db_backend,
         sqlite_db_file=sqlite_db_file,
@@ -498,6 +621,11 @@ def deep_dive():
         filters=filters,
         active_filter_fields=active_filter_fields,
         filter_options=filter_options,
+        deep_dive_columns=deep_dive_columns,
+        deep_dive_rows=deep_dive_rows,
+        deep_dive_total_rows=deep_dive_total_rows,
+        deep_dive_page_size=page_size,
+        pagination=pagination,
         filtered_rows=int(filtered_df.shape[0]),
         total_rows=int(df.shape[0]),
         branding=branding,

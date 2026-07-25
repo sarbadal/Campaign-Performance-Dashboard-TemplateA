@@ -131,6 +131,8 @@ Key sections:
 - `available_kpis`, `selected_kpis`
 - `available_filter_fields`, `selected_filter_fields`
 - `available_top_entity_charts`, `selected_top_entity_charts`
+- `available_deep_dive_table_columns`, `selected_deep_dive_table_columns`
+- `deep_dive_default_page_size` (positive integer; shown in page-size options together with `50`, `100`, `200`)
 - `top_entity_chart_default_color`
 - `top_entity_chart_colors` (per entity type and item value)
 - `platform_chart_colors` (legacy compatibility for platform colors)

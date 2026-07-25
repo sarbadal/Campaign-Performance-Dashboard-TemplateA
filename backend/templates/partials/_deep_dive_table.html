@@ -1,0 +1,60 @@
+<section class="panel" aria-label="Deep dive data table">
+  <div class="panel-header">Deep Dive Campaign Data</div>
+  <div class="date-range">
+    Showing {{ pagination.start_row }} to {{ pagination.end_row }} of {{ deep_dive_total_rows }} rows
+  </div>
+
+  {% if deep_dive_columns and deep_dive_rows %}
+  <div class="table-wrap">
+    <table class="data-table" aria-label="Deep dive campaign data table">
+      <thead>
+        <tr>
+          {% for column in deep_dive_columns %}
+          <th scope="col">{{ column.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in deep_dive_rows %}
+        <tr>
+          {% for column in deep_dive_columns %}
+          <td>{{ row[column.key] }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="filters-actions" style="margin-top: 10px;">
+    {% if pagination.prev_url %}
+    <a class="btn-clear" href="{{ pagination.prev_url }}">Previous</a>
+    {% endif %}
+
+    {% for item in pagination.page_links %}
+      {% if item.is_current %}
+      <span class="btn-apply" aria-current="page">{{ item.page }}</span>
+      {% else %}
+      <a class="btn-clear" href="{{ item.url }}">{{ item.page }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagination.next_url %}
+    <a class="btn-clear" href="{{ pagination.next_url }}">Next</a>
+    {% endif %}
+
+    <span class="filters-count">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+  </div>
+  <div class="filters-actions" style="margin-top: 8px;">
+    <span class="filter-label">Rows per page</span>
+    {% for option in pagination.page_size_links %}
+      {% if option.is_current %}
+      <span class="btn-apply" aria-current="true">{{ option.size }}</span>
+      {% else %}
+      <a class="btn-clear" href="{{ option.url }}">{{ option.size }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">No rows available for the current filters.</div>
+  {% endif %}
+</section>

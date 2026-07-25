@@ -27,6 +27,21 @@ DEFAULT_SELECTED_TOP_ENTITY_CHARTS = [
     "campaign_name",
 ]
 
+DEFAULT_SELECTED_DEEP_DIVE_TABLE_COLUMNS = [
+    "DATE",
+    "CAMPAIGN_NAME",
+    "CAMPAIGN_GROUP",
+    "PLATFORM",
+    "ADSET_NAME",
+    "AD_NAME",
+    "AMOUNT_SPENT",
+    "IMPRESSIONS",
+    "CLICKS",
+    "CONVERSIONS",
+    "LEADS",
+    "REACH",
+]
+
 
 def load_platform_chart_colors(settings_file: Path) -> dict[str, str]:
     """Load optional platform color mapping for Top Platforms chart.
@@ -313,3 +328,97 @@ def load_selected_top_entity_charts(
         return selected
 
     return [key for key in fallback if key in available][:max(max_charts, 1)]
+
+
+def load_selected_deep_dive_table_columns(
+    settings_file: Path,
+    allowed_column_keys: list[str],
+    max_columns: int = 12,
+) -> list[str]:
+    """Load selected deep-dive table column keys from JSON settings file."""
+    if not allowed_column_keys:
+        return []
+
+    allowed: list[str] = []
+    for item in allowed_column_keys:
+        key = str(item).strip()
+        if key and key not in allowed:
+            allowed.append(key)
+
+    fallback = [key for key in DEFAULT_SELECTED_DEEP_DIVE_TABLE_COLUMNS if key in allowed]
+    if not fallback:
+        fallback = allowed[:max(max_columns, 1)]
+
+    if not settings_file.exists():
+        return fallback[:max(max_columns, 1)]
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return fallback[:max(max_columns, 1)]
+
+    available_raw = payload.get("available_deep_dive_table_columns")
+    available = set(allowed)
+    if isinstance(available_raw, list):
+        configured_available: set[str] = set()
+        for item in available_raw:
+            if not isinstance(item, str):
+                continue
+            key = item.strip()
+            if key in available:
+                configured_available.add(key)
+        if configured_available:
+            available = configured_available
+
+    selected_raw = payload.get("selected_deep_dive_table_columns")
+    if not isinstance(selected_raw, list):
+        return [key for key in fallback if key in available][:max(max_columns, 1)]
+
+    selected: list[str] = []
+    for item in selected_raw:
+        if not isinstance(item, str):
+            continue
+        key = item.strip()
+        if not key or key in selected:
+            continue
+        if key not in available:
+            continue
+        selected.append(key)
+        if len(selected) >= max(max_columns, 1):
+            break
+
+    if selected:
+        return selected
+
+    return [key for key in fallback if key in available][:max(max_columns, 1)]
+
+
+def load_deep_dive_default_page_size(
+    settings_file: Path,
+    default_page_size: int = 100,
+    min_page_size: int = 1,
+    max_page_size: int = 1000,
+) -> int:
+    """Load default deep-dive page size from JSON settings file."""
+    fallback = default_page_size if default_page_size > 0 else 100
+
+    if not settings_file.exists():
+        return fallback
+
+    try:
+        payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return fallback
+
+    raw = payload.get("deep_dive_default_page_size")
+    try:
+        parsed = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return fallback
+
+    if parsed < max(min_page_size, 1):
+        return fallback
+    if parsed > max(max_page_size, max(min_page_size, 1)):
+        return fallback
+
+    return parsed

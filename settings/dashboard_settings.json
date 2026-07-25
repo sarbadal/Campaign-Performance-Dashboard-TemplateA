@@ -49,6 +49,32 @@
     "adset_name",
     "campaign_group"
   ],
+  "available_deep_dive_table_columns": [
+    "DATE",
+    "CAMPAIGN_NAME",
+    "CAMPAIGN_GROUP",
+    "PLATFORM",
+    "ADSET_NAME",
+    "AD_NAME",
+    "AMOUNT_SPENT",
+    "IMPRESSIONS",
+    "CLICKS",
+    "CONVERSIONS",
+    "LEADS",
+    "REACH"
+  ],
+  "selected_deep_dive_table_columns": [
+    "DATE",
+    "PLATFORM",
+    "CAMPAIGN_GROUP",
+    "ADSET_NAME",
+    "AMOUNT_SPENT",
+    "IMPRESSIONS",
+    "CLICKS",
+    "CONVERSIONS",
+    "LEADS"
+  ],
+  "deep_dive_default_page_size": 25,
   "dual_axis_line_colors": {
     "left": "#0b6e4f",
     "right": "#d97706",
