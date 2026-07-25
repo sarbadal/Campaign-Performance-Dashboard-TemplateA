@@ -78,3 +78,11 @@
   border-radius: 8px;
   background: #fff;
 }
+
+.deep-dive-primary-row {
+  cursor: pointer;
+}
+
+.deep-dive-primary-row.is-selected {
+  background: #ecf6f1;
+}

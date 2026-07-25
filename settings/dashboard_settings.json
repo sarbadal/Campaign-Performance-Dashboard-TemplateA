@@ -64,8 +64,8 @@
     "REACH"
   ],
   "selected_deep_dive_table_columns": [
-    "DATE",
     "PLATFORM",
+    "DATE",
     "CAMPAIGN_GROUP",
     "ADSET_NAME",
     "AMOUNT_SPENT",
@@ -79,8 +79,7 @@
     "CAMPAIGN_GROUP",
     "CAMPAIGN_NAME",
     "ADSET_NAME",
-    "AD_NAME",
-    "DATE"
+    "AD_NAME"
   ],
   "selected_deep_dive_hierarchy_fields": [
     "PLATFORM",

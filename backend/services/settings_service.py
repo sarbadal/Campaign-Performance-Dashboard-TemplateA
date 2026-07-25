@@ -458,17 +458,23 @@ def load_selected_deep_dive_hierarchy_fields(
         return fallback[:max(max_levels, 1)]
 
     available_raw = payload.get("available_deep_dive_hierarchy_fields")
-    available = set(allowed)
+    available_ordered = list(allowed)
     if isinstance(available_raw, list):
-        configured_available: set[str] = set()
+        configured_available: list[str] = []
         for item in available_raw:
             if not isinstance(item, str):
                 continue
             key = item.strip()
-            if key in available:
-                configured_available.add(key)
+            if key in allowed and key not in configured_available:
+                configured_available.append(key)
         if configured_available:
-            available = configured_available
+            available_ordered = configured_available
+
+    # Enforce hierarchy order from available_deep_dive_hierarchy_fields.
+    if available_ordered:
+        return available_ordered[:max(max_levels, 1)]
+
+    available = set(allowed)
 
     selected_raw = payload.get("selected_deep_dive_hierarchy_fields")
     if not isinstance(selected_raw, list):

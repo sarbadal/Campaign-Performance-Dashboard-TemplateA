@@ -1,7 +1,7 @@
 <section class="panel" aria-label="Deep dive data table">
   {% macro render_nodes(nodes, columns, level=1) %}
     {% for node in nodes %}
-    <details class="drill-node level-{{ node.level }}" {% if node.level <= 2 %}open{% endif %}>
+    <details class="drill-node level-{{ node.level }}">
       <summary>
         <span class="drill-title">{{ node.field_label }}: {{ node.label }}</span>
         <span class="drill-meta">Rows: {{ node.row_count }}</span>
@@ -26,7 +26,7 @@
           </thead>
           <tbody>
             {% for row in node.rows %}
-            <tr>
+            <tr class="deep-dive-primary-row">
               {% for column in columns %}
               <td>{{ row[column.key] }}</td>
               {% endfor %}
@@ -99,7 +99,7 @@
       </thead>
       <tbody>
         {% for row in deep_dive_rows %}
-        <tr>
+        <tr class="deep-dive-primary-row">
           {% for column in deep_dive_columns %}
           <td>{{ row[column.key] }}</td>
           {% endfor %}
@@ -112,7 +112,7 @@
   <div class="empty-state">No rows available for the current filters.</div>
   {% endif %}
 
-  {% if deep_dive_columns and deep_dive_rows %}
+  {% if deep_dive_view_mode != "hierarchy" and deep_dive_columns and deep_dive_rows %}
   <div class="filters-actions" style="margin-top: 10px;">
     {% if pagination.prev_url %}
     <a class="btn-clear" href="{{ pagination.prev_url }}">Previous</a>
@@ -141,6 +141,26 @@
       <a class="btn-clear" href="{{ option.url }}">{{ option.size }}</a>
       {% endif %}
     {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if deep_dive_columns and deep_dive_rows %}
+  <div class="panel-header" style="margin-top: 14px;">Deep Dive Campaign Data (Table View)</div>
+  <div class="date-range" id="deep-dive-linked-meta">Showing 0 rows from expanded or selected data</div>
+  <div class="filters-actions" style="margin-top: 8px;">
+    <button type="button" class="btn-clear" id="deep-dive-linked-download-btn">Download Linked Table CSV</button>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table" aria-label="Deep dive linked data table" id="deep-dive-linked-table">
+      <thead>
+        <tr>
+          {% for column in deep_dive_columns %}
+          <th scope="col">{{ column.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody id="deep-dive-linked-body"></tbody>
+    </table>
   </div>
   {% endif %}
 </section>

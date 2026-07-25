@@ -542,6 +542,8 @@ def deep_dive():
     else:
         deep_dive_table_df = deep_dive_table_df.head(0)
 
+    deep_dive_full_df = deep_dive_table_df.copy()
+
     total_pages = max((deep_dive_total_rows + page_size - 1) // page_size, 1)
     page = min(page, total_pages)
     start_index = (page - 1) * page_size
@@ -554,7 +556,7 @@ def deep_dive():
     ]
     available_hierarchy_fields = [
         key for key in ["PLATFORM", "CAMPAIGN_GROUP", "CAMPAIGN_NAME", "ADSET_NAME", "AD_NAME", "DATE"]
-        if key in filtered_df.columns and key not in metric_column_keys
+        if key in selected_table_columns and key not in metric_column_keys
     ]
     hierarchy_columns = load_selected_deep_dive_hierarchy_fields(
         settings_file=settings_file,
@@ -627,7 +629,7 @@ def deep_dive():
 
     deep_dive_rows: list[dict[str, str]] = [_row_to_record(row) for _, row in deep_dive_table_df.iterrows()]
     deep_dive_drill_nodes = (
-        _build_drill_nodes(deep_dive_table_df, hierarchy_columns)
+        _build_drill_nodes(deep_dive_full_df, hierarchy_columns)
         if view_mode == "hierarchy"
         else []
     )
