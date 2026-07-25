@@ -66,8 +66,14 @@
       const replacedKpis = replaceSection(nextDoc, '.kpi-grid');
       const replacedInsights = replaceSection(nextDoc, '#insights-top');
       const replacedTrend = replaceSection(nextDoc, '#dual-axis-trend');
+      const replacedFooter = replaceSection(nextDoc, '.footer');
+      const currentHeader = document.querySelector('.page-header');
+      const nextHeader = nextDoc.querySelector('.page-header');
+      const replacedHeader =
+        (!(currentHeader instanceof HTMLElement) && !(nextHeader instanceof HTMLElement))
+        || replaceSection(nextDoc, '.page-header');
 
-      if (!replacedFilters || !replacedKpis || !replacedInsights || !replacedTrend) {
+      if (!replacedFilters || !replacedKpis || !replacedInsights || !replacedTrend || !replacedFooter || !replacedHeader) {
         throw new Error('Unable to update all dashboard sections');
       }
 
