@@ -11,9 +11,9 @@
     var(--banner-mid, #13795c) 55%,
     var(--banner-end, #2e8f74) 100%
   );
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
+  width: calc(100vw + 4px);
+  margin-left: calc(50% - 50vw - 2px);
+  margin-right: calc(50% - 50vw - 2px);
   position: sticky;
   top: 0;
   z-index: 50;
