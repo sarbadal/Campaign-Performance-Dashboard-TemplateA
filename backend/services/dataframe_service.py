@@ -37,10 +37,7 @@ def _read_mysql_table_as_dataframe(conn, table_name: str) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=columns)
 
 
-def _read_mysql_table_as_dataframe_sqlalchemy(
-    mysql_config: dict[str, object],
-    table_name: str,
-) -> pd.DataFrame | None:
+def _read_mysql_table_as_dataframe_sqlalchemy(mysql_config: dict[str, object], table_name: str) -> pd.DataFrame | None:
     """Read full MySQL table via SQLAlchemy when available.
 
     Returns None when SQLAlchemy is not installed so callers can use a fallback.

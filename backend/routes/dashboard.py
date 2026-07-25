@@ -77,6 +77,10 @@ DEEP_DIVE_TABLE_COLUMN_DEFINITIONS: dict[str, str] = {
 
 TOP_LEVEL_FILTERS_SESSION_KEY = "top_level_filters"
 
+FilterOptionsByField = dict[str, list[str]]
+FilterState = dict[str, object]
+FilterDataframeResult = tuple[pd.DataFrame, FilterState, FilterOptionsByField]
+
 
 def _as_clean_str(value: object) -> str:
     if value is None:
@@ -126,11 +130,7 @@ def _format_last_updated(raw: str | None) -> str:
         return raw
 
 
-def _resolve_last_updated_display(
-    db_backend: str,
-    sqlite_db_file,
-    mysql_config: dict[str, object],
-) -> str:
+def _resolve_last_updated_display(db_backend: str, sqlite_db_file: Path, mysql_config: dict[str, object]) -> str:
     if db_backend == "mysql":
         raw = fetch_mysql_last_ingested_at(mysql_config)
     else:
@@ -159,10 +159,7 @@ def _format_metric_value(metric_key: str, value: float) -> str:
     return f"{int(round(value)):,}"
 
 
-def _filter_dataframe(
-    df: pd.DataFrame,
-    active_filter_fields: list[dict[str, str]],
-) -> tuple[pd.DataFrame, dict[str, object], dict[str, list[str]]]:
+def _filter_dataframe(df: pd.DataFrame, active_filter_fields: list[dict[str, str]]) -> FilterDataframeResult:
     clear_requested = _as_clean_str(request.args.get("clear_filters", "")).lower() in {"1", "true", "yes"}
     if clear_requested:
         session.pop(TOP_LEVEL_FILTERS_SESSION_KEY, None)
