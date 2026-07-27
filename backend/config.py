@@ -59,6 +59,9 @@ class Config:
     MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "campaign_performance").strip() or "campaign_performance"
     MYSQL_TABLE = os.getenv("MYSQL_TABLE", "campaign_data").strip() or "campaign_data"
     MYSQL_STATE_TABLE = os.getenv("MYSQL_STATE_TABLE", "ingestion_state").strip() or "ingestion_state"
+    GCS_DATA_BUCKET = os.getenv("GCS_DATA_BUCKET", "").strip()
+    GCS_DATA_PREFIX = os.getenv("GCS_DATA_PREFIX", "").strip()
+    GCS_CREDENTIALS_JSON = os.getenv("GCS_CREDENTIALS_JSON", "").strip()
     DASHBOARD_SETTINGS_FILE = Path(
         os.getenv("DASHBOARD_SETTINGS_FILE", str(BASE_DIR / "settings" / "dashboard_settings.json"))
     )

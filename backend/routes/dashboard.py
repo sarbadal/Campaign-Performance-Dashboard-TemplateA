@@ -136,11 +136,33 @@ def _format_last_updated(raw: str | None) -> str:
 
 
 def _resolve_last_updated_display(db_backend: str, sqlite_db_file: Path, mysql_config: dict[str, object]) -> str:
-    if db_backend == "mysql":
+    normalized_backend = db_backend.strip().lower()
+    if normalized_backend == "mysql":
         raw = fetch_mysql_last_ingested_at(mysql_config)
-    else:
+    elif normalized_backend == "sqlite":
         raw = fetch_sqlite_last_ingested_at(sqlite_db_file)
+    else:
+        raw = None
     return _format_last_updated(raw)
+
+
+def _resolve_latest_report_date_display(df: pd.DataFrame) -> str:
+    if "DATE" not in df.columns:
+        return "N/A"
+
+    dates = pd.to_datetime(df["DATE"], errors="coerce").dropna()
+    if dates.empty:
+        return "N/A"
+
+    return dates.max().strftime("%d %b %Y")
+
+
+def _resolve_footer_recency(db_backend: str, sqlite_db_file: Path, mysql_config: dict[str, object], df: pd.DataFrame) -> tuple[str, str]:
+    normalized_backend = db_backend.strip().lower()
+    if normalized_backend == "gcs":
+        return "Latest Report Date", _resolve_latest_report_date_display(df)
+
+    return "Last Updated", _resolve_last_updated_display(db_backend, sqlite_db_file, mysql_config)
 
 
 def _as_positive_int(value: object, default: int) -> int:
@@ -355,6 +377,9 @@ def dashboard():
         "table": current_app.config.get("MYSQL_TABLE", "campaign_data"),
         "state_table": current_app.config.get("MYSQL_STATE_TABLE", "ingestion_state"),
     }
+    gcs_bucket = str(current_app.config.get("GCS_DATA_BUCKET", ""))
+    gcs_prefix = str(current_app.config.get("GCS_DATA_PREFIX", ""))
+    gcs_credentials_json = str(current_app.config.get("GCS_CREDENTIALS_JSON", ""))
     settings_file = current_app.config["DASHBOARD_SETTINGS_FILE"]
     field_mapping_file = current_app.config["FIELD_MAPPING_FILE"]
     currency_symbol = str(current_app.config.get("KPI_CURRENCY_SYMBOL", "RM"))
@@ -367,6 +392,9 @@ def dashboard():
             mysql_config=mysql_config,
             field_mapping_file=field_mapping_file,
             cache_ttl_seconds=cache_ttl_seconds,
+            gcs_bucket=gcs_bucket,
+            gcs_prefix=gcs_prefix,
+            gcs_credentials_json=gcs_credentials_json,
         )
     )
     selected_filter_keys = load_selected_filter_fields(
@@ -482,10 +510,11 @@ def dashboard():
             granularity=selected_line_granularity,
         )
     )
-    last_updated_display = _resolve_last_updated_display(
+    recency_label, recency_value = _resolve_footer_recency(
         db_backend=db_backend,
         sqlite_db_file=sqlite_db_file,
         mysql_config=mysql_config,
+        df=df,
     )
     branding = {
         "client_name": current_app.config.get("CLIENT_NAME", "Brand Placeholder"),
@@ -496,7 +525,8 @@ def dashboard():
         ),
         "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
         "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
-        "last_updated_at": last_updated_display,
+        "last_updated_label": recency_label,
+        "last_updated_at": recency_value,
         "footer_logo_image_path": current_app.config.get("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif"),
         "show_footer_logo": bool(current_app.config.get("SHOW_FOOTER_LOGO", True)),
         "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),
@@ -560,6 +590,9 @@ def deep_dive():
         "table": current_app.config.get("MYSQL_TABLE", "campaign_data"),
         "state_table": current_app.config.get("MYSQL_STATE_TABLE", "ingestion_state"),
     }
+    gcs_bucket = str(current_app.config.get("GCS_DATA_BUCKET", ""))
+    gcs_prefix = str(current_app.config.get("GCS_DATA_PREFIX", ""))
+    gcs_credentials_json = str(current_app.config.get("GCS_CREDENTIALS_JSON", ""))
     settings_file = current_app.config["DASHBOARD_SETTINGS_FILE"]
     field_mapping_file = current_app.config["FIELD_MAPPING_FILE"]
     cache_ttl_seconds = int(current_app.config.get("KPI_CACHE_TTL_SECONDS", 300))
@@ -571,6 +604,9 @@ def deep_dive():
             mysql_config=mysql_config,
             field_mapping_file=field_mapping_file,
             cache_ttl_seconds=cache_ttl_seconds,
+            gcs_bucket=gcs_bucket,
+            gcs_prefix=gcs_prefix,
+            gcs_credentials_json=gcs_credentials_json,
         )
     )
     selected_filter_keys = load_selected_filter_fields(
@@ -828,10 +864,11 @@ def deep_dive():
     deep_dive_download_current_csv_url = _build_download_csv_url(download_all=False)
     deep_dive_download_all_csv_url = _build_download_csv_url(download_all=True)
 
-    last_updated_display = _resolve_last_updated_display(
+    recency_label, recency_value = _resolve_footer_recency(
         db_backend=db_backend,
         sqlite_db_file=sqlite_db_file,
         mysql_config=mysql_config,
+        df=df,
     )
 
     branding = {
@@ -843,7 +880,8 @@ def deep_dive():
         ),
         "logo_image_path": current_app.config.get("LOGO_IMAGE_PATH", "img/client-logo.svg"),
         "footer_team_name": current_app.config.get("FOOTER_TEAM_NAME", "Performance Analytics Team"),
-        "last_updated_at": last_updated_display,
+        "last_updated_label": recency_label,
+        "last_updated_at": recency_value,
         "footer_logo_image_path": current_app.config.get("FOOTER_LOGO_IMAGE_PATH", "img/ogs-logo.gif"),
         "show_footer_logo": bool(current_app.config.get("SHOW_FOOTER_LOGO", True)),
         "banner_gradient_start": current_app.config.get("BANNER_GRADIENT_START", "#0b6e4f"),
@@ -903,6 +941,9 @@ def deep_dive_download_csv() -> Response:
         "table": current_app.config.get("MYSQL_TABLE", "campaign_data"),
         "state_table": current_app.config.get("MYSQL_STATE_TABLE", "ingestion_state"),
     }
+    gcs_bucket = str(current_app.config.get("GCS_DATA_BUCKET", ""))
+    gcs_prefix = str(current_app.config.get("GCS_DATA_PREFIX", ""))
+    gcs_credentials_json = str(current_app.config.get("GCS_CREDENTIALS_JSON", ""))
     settings_file = current_app.config["DASHBOARD_SETTINGS_FILE"]
     field_mapping_file = current_app.config["FIELD_MAPPING_FILE"]
     cache_ttl_seconds = int(current_app.config.get("KPI_CACHE_TTL_SECONDS", 300))
@@ -914,6 +955,9 @@ def deep_dive_download_csv() -> Response:
             mysql_config=mysql_config,
             field_mapping_file=field_mapping_file,
             cache_ttl_seconds=cache_ttl_seconds,
+            gcs_bucket=gcs_bucket,
+            gcs_prefix=gcs_prefix,
+            gcs_credentials_json=gcs_credentials_json,
         )
     )
 

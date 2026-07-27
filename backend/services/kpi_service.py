@@ -31,6 +31,9 @@ class KpiSummaryRequest:
     mysql_config: dict[str, object]
     field_mapping_file: Path
     cache_ttl_seconds: int = 300
+    gcs_bucket: str = ""
+    gcs_prefix: str = ""
+    gcs_credentials_json: str | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +50,9 @@ def build_kpi_summary(request: KpiSummaryRequest) -> KpiSummary:
             mysql_config=request.mysql_config,
             field_mapping_file=request.field_mapping_file,
             cache_ttl_seconds=request.cache_ttl_seconds,
+            gcs_bucket=request.gcs_bucket,
+            gcs_prefix=request.gcs_prefix,
+            gcs_credentials_json=request.gcs_credentials_json,
         )
     )
     return build_kpi_summary_from_dataframe(df)
