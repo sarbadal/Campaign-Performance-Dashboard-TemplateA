@@ -2,6 +2,7 @@
   max-width: 1080px;
   margin: 0 auto;
   padding: 24px 16px 40px;
+  padding-top: calc(var(--banner-offset, 92px) + 12px);
 }
 
 .top-banner {
@@ -11,18 +12,20 @@
     var(--banner-mid, #13795c) 55%,
     var(--banner-end, #2e8f74) 100%
   );
-  width: calc(100vw + 4px);
-  margin-left: calc(50% - 50vw - 2px);
-  margin-right: calc(50% - 50vw - 2px);
-  position: sticky;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   border-radius: 0;
   padding: 16px 0;
   color: #f5fffb;
   backdrop-filter: saturate(130%) blur(4px);
   box-shadow: 0 14px 28px rgba(11, 110, 79, 0.22);
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 
 .banner-inner {
@@ -94,6 +97,16 @@
 .banner-logout-btn {
   cursor: pointer;
   font: inherit;
+}
+
+.banner-page-download-btn {
+  cursor: pointer;
+  font: inherit;
+}
+
+.banner-page-download-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .banner-logo {

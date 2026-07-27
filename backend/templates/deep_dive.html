@@ -7,7 +7,7 @@
   <link rel="icon" type="image/x-icon" href="{{ static_url('img/favicon.ico', v='20260725a') }}">
   <link rel="shortcut icon" href="{{ static_url('img/favicon.ico', v='20260725a') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard.css', v='20260725c') }}">
-  <link rel="stylesheet" href="{{ static_url('css/dashboard-layout.css', v='20260725k') }}">
+  <link rel="stylesheet" href="{{ static_url('css/dashboard-layout.css', v='20260727q') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard-item.css', v='20260724k') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard-table.css', v='20260725i') }}">
   <link rel="stylesheet" href="{{ static_url('css/dashboard-chart.css', v='20260724h') }}">
@@ -25,7 +25,11 @@
     {% include "partials/_deep_dive_table.html" %}
     {% include "partials/_footer.html" %}
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="{{ static_url('js/dashboard/dashboard-banner-offset.js', v='20260727a') }}"></script>
   <script src="{{ static_url('js/dashboard/dashboard-dropdowns.js', v='20260724q') }}"></script>
+  <script src="{{ static_url('js/dashboard/dashboard-page-download.js', v='20260727a') }}"></script>
   <script src="{{ static_url('js/dashboard/deep-dive-linked-table.js', v='20260725e') }}"></script>
 </body>
 </html>
