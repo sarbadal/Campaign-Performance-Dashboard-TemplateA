@@ -2,7 +2,7 @@
   max-width: 1080px;
   margin: 0 auto;
   padding: 24px 16px 40px;
-  padding-top: calc(var(--banner-offset, 92px) + 12px);
+  padding-top: 124px;
 }
 
 .top-banner {
@@ -217,6 +217,10 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  .container {
+    padding-top: 170px;
+  }
+
   .banner-inner {
     flex-direction: column;
     align-items: flex-start;

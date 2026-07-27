@@ -12,6 +12,14 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  overflow-y: scroll;
+}
+
 * { box-sizing: border-box; }
 
 body {
