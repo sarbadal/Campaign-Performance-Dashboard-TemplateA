@@ -256,25 +256,56 @@
 .top-kpi-control-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 
 .top-kpi-control-row select {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: none;
+  flex: 0 0 170px;
+  width: 170px;
+  min-width: 170px;
+  max-width: 170px;
 }
 
 .top-kpi-control-row .btn-apply {
   flex: 0 0 auto;
   white-space: nowrap;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  height: 34px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .top-kpi-control-row .top-entity-download-btn {
   flex: 0 0 auto;
   white-space: nowrap;
   cursor: pointer;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  height: 34px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-kpi-control-row .top-entity-download-image-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  height: 34px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .top-chart-kpi-form {
@@ -304,7 +335,9 @@
   }
 
   .top-kpi-control-row select,
-  .top-kpi-control-row .btn-apply {
+  .top-kpi-control-row .btn-apply,
+  .top-kpi-control-row .top-entity-download-btn,
+  .top-kpi-control-row .top-entity-download-image-btn {
     width: 100%;
     max-width: none;
   }

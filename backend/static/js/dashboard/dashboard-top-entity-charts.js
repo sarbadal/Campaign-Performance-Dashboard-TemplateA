@@ -38,6 +38,10 @@
     return `"${text.replace(/"/g, '""')}"`;
   };
 
+  const isoTimestamp = () => (
+    new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_')
+  );
+
   registry.renderTopEntityCharts = (root = document) => {
     const canvases = Array.from(root.querySelectorAll('.top-entity-chart'));
     if (!canvases.length || typeof Chart === 'undefined') {
@@ -269,7 +273,7 @@
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
-    const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
+    const timestamp = isoTimestamp();
     const normalizedKey = safeKey.replace(/[^a-zA-Z0-9_-]/g, '_');
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -278,6 +282,39 @@
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadTopEntityChartImage = (chartKey, format = 'png') => {
+    const safeKey = String(chartKey || '').trim();
+    if (!safeKey || typeof Chart === 'undefined' || typeof Chart.getChart !== 'function') {
+      return;
+    }
+
+    const canvas = document.querySelector(`#top-entity-chart-${CSS.escape(safeKey)}`);
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      return;
+    }
+
+    const chart = Chart.getChart(canvas);
+    if (!chart || typeof chart.toBase64Image !== 'function') {
+      return;
+    }
+
+    const normalizedFormat = String(format || 'png').toLowerCase() === 'jpg' ? 'jpg' : 'png';
+    const mimeType = normalizedFormat === 'jpg' ? 'image/jpeg' : 'image/png';
+    const imageUrl = chart.toBase64Image(mimeType, 0.92);
+    if (!imageUrl) {
+      return;
+    }
+
+    const timestamp = isoTimestamp();
+    const normalizedKey = safeKey.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const anchor = document.createElement('a');
+    anchor.href = imageUrl;
+    anchor.download = `top_${normalizedKey}_${timestamp}.${normalizedFormat}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   };
 
   if (!window.__dashboardTopEntityCsvBound) {
@@ -290,6 +327,16 @@
 
       const downloadButton = target.closest('.top-entity-download-btn');
       if (!(downloadButton instanceof HTMLButtonElement)) {
+        const downloadImageButton = target.closest('.top-entity-download-image-btn');
+        if (!(downloadImageButton instanceof HTMLButtonElement)) {
+          return;
+        }
+
+        event.preventDefault();
+        downloadTopEntityChartImage(
+          downloadImageButton.dataset.chartKey || '',
+          downloadImageButton.dataset.format || 'png'
+        );
         return;
       }
 

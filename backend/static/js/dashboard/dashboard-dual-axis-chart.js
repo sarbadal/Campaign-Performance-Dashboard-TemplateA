@@ -14,6 +14,10 @@
     }
   };
 
+  const isoTimestamp = () => (
+    new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_')
+  );
+
   const withAlpha = (color, alpha) => {
     const raw = String(color || '').trim();
     const match = raw.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
@@ -229,7 +233,7 @@
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
-    const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_');
+    const timestamp = isoTimestamp();
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `dual_axis_kpi_trend_${timestamp}.csv`;
@@ -237,6 +241,37 @@
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadDualAxisChartImage = (format = 'png') => {
+    if (typeof Chart === 'undefined' || typeof Chart.getChart !== 'function') {
+      return;
+    }
+
+    const canvas = document.querySelector('#dual-axis-kpi-chart');
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      return;
+    }
+
+    const chart = Chart.getChart(canvas);
+    if (!chart || typeof chart.toBase64Image !== 'function') {
+      return;
+    }
+
+    const normalizedFormat = String(format || 'png').toLowerCase() === 'jpg' ? 'jpg' : 'png';
+    const mimeType = normalizedFormat === 'jpg' ? 'image/jpeg' : 'image/png';
+    const imageUrl = chart.toBase64Image(mimeType, 0.92);
+    if (!imageUrl) {
+      return;
+    }
+
+    const timestamp = isoTimestamp();
+    const anchor = document.createElement('a');
+    anchor.href = imageUrl;
+    anchor.download = `dual_axis_kpi_trend_${timestamp}.${normalizedFormat}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   };
 
   if (!window.__dashboardDualAxisCsvBound) {
@@ -249,6 +284,13 @@
 
       const downloadButton = target.closest('.dual-axis-download-btn');
       if (!(downloadButton instanceof HTMLButtonElement)) {
+        const downloadImageButton = target.closest('.dual-axis-download-image-btn');
+        if (!(downloadImageButton instanceof HTMLButtonElement)) {
+          return;
+        }
+
+        event.preventDefault();
+        downloadDualAxisChartImage(downloadImageButton.dataset.format || 'png');
         return;
       }
 

@@ -13,13 +13,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
 .dual-axis-form .filter-field {
-  min-width: 220px;
-  flex: 1 1 220px;
+  min-width: 200px;
+  flex: 1 1 200px;
 }
 
 .dual-axis-form .btn-apply {
@@ -29,6 +29,20 @@
 .dual-axis-form .dual-axis-download-btn {
   align-self: end;
   cursor: pointer;
+}
+
+.dual-axis-form .btn-apply,
+.dual-axis-form .dual-axis-download-btn,
+.dual-axis-form .dual-axis-download-image-btn {
+  white-space: nowrap;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  height: 34px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dual-axis-chart-wrap {
