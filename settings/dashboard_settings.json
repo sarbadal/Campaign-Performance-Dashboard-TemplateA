@@ -23,7 +23,7 @@
     "total_leads",
     "total_conversions",
     "avg_ctr_percent",
-    "avg_cpc"
+    "cpm"
   ],
   "available_filter_fields": [
     "objective",
@@ -46,7 +46,7 @@
     "adset_name"
   ],
   "selected_top_entity_charts": [
-    "adset_name",
+    "platform",
     "campaign_group"
   ],
   "available_deep_dive_table_columns": [

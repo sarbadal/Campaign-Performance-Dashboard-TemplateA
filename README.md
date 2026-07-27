@@ -177,6 +177,38 @@ Optional filter/chart dimensions used in UI:
 - `AD_NAME`
 - `ADSET_NAME`
 
+### Mask data for dummy/sample use
+
+Use the masking utility to anonymize text identifiers and perturb metrics while preserving schema compatibility with the dashboard:
+
+```bash
+python scripts/mask_sample_data.py --input data/data.csv
+```
+
+To write to a separate output file instead of replacing in place:
+
+```bash
+python scripts/mask_sample_data.py --input data/data.csv --output data/data.sample.csv
+```
+
+To update only label fields (campaign/group/audience/creative/objective/platform) with meaningful synthetic names and keep numeric sample metrics unchanged:
+
+```bash
+python scripts/mask_sample_data.py --input data/data.csv --text-only
+```
+
+Use an industry-specific naming tone when generating labels:
+
+```bash
+python scripts/mask_sample_data.py --input data/data.csv --text-only --naming-style retail
+```
+
+Available naming styles:
+
+- `retail`
+- `finance`
+- `b2b`
+
 ## Routing
 
 - `GET /` -> dashboard
