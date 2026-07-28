@@ -8,8 +8,6 @@ import pandas as pd
 from flask import Blueprint, current_app, request, session, url_for
 
 from backend.services.dataframe_service import DataframeRequest, get_campaign_dataframe
-from backend.services.db_service import fetch_sqlite_last_ingested_at
-from backend.services.mysql_service import fetch_mysql_last_ingested_at
 from backend.services.settings_service import (
     load_selected_filter_fields,
 )
@@ -134,15 +132,8 @@ def _format_last_updated(raw: str | None) -> str:
         return raw
 
 
-def _resolve_last_updated_display(db_backend: str, sqlite_db_file: Path, mysql_config: dict[str, object]) -> str:
-    normalized_backend = db_backend.strip().lower()
-    if normalized_backend == "mysql":
-        raw = fetch_mysql_last_ingested_at(mysql_config)
-    elif normalized_backend == "sqlite":
-        raw = fetch_sqlite_last_ingested_at(sqlite_db_file)
-    else:
-        raw = None
-    return _format_last_updated(raw)
+def _resolve_last_updated_display(df: pd.DataFrame) -> str:
+    return _resolve_latest_report_date_display(df)
 
 
 def _resolve_latest_report_date_display(df: pd.DataFrame) -> str:
@@ -166,7 +157,7 @@ def _resolve_footer_recency(
     if normalized_backend == "gcs":
         return "Latest Report Date", _resolve_latest_report_date_display(df)
 
-    return "Last Updated", _resolve_last_updated_display(db_backend, sqlite_db_file, mysql_config)
+    return "Last Updated", _resolve_last_updated_display(df)
 
 
 def _as_positive_int(value: object, default: int) -> int:
