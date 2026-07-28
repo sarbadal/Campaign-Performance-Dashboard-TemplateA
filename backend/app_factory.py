@@ -6,7 +6,7 @@ from flask import Flask
 from flask import url_for
 
 from .config import Config
-from .routes.dashboard import dashboard_bp
+from .routes import dashboard_bp
 
 
 def create_app() -> Flask:
