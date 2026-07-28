@@ -97,6 +97,34 @@ class DashboardSettingsState:
 
 
 @dataclass(slots=True)
+class DashboardMetricsChartsState:
+    summary: object
+    kpi_cards: list[dict[str, object]]
+    top_entity_charts: list[TopEntityChart]
+    top_kpi_options: dict[str, str]
+    dual_axis_series: list[dict[str, object]]
+
+
+@dataclass(slots=True)
+class DashboardMetricsChartsParams:
+    filtered_df: object
+    currency_symbol: str
+    top_kpi_state: TopKpiState
+    line_trend_state: LineTrendState
+    settings_state: DashboardSettingsState
+
+
+@dataclass(slots=True)
+class DashboardTemplatePayloadParams:
+    route_context: object
+    top_kpi_state: TopKpiState
+    line_trend_state: LineTrendState
+    settings_state: DashboardSettingsState
+    metrics_charts_state: DashboardMetricsChartsState
+    currency_symbol: str
+
+
+@dataclass(slots=True)
 class LineTrendState:
     """Resolved state for the dashboard dual-axis trend chart.
 
@@ -288,54 +316,64 @@ def _load_dashboard_settings_state(settings_file: object) -> DashboardSettingsSt
     )
 
 
-def _prepare_dashboard_render_context(route_context: object, currency_symbol: str) -> dict[str, object]:
-    """Build the full template context for the dashboard page."""
-    db_backend = route_context.db_backend
-    sqlite_db_file = route_context.sqlite_db_file
-    mysql_config = route_context.mysql_config
-    settings_file = route_context.settings_file
-
-    df = route_context.df
-    active_filter_fields = route_context.active_filter_fields
-    filtered_df = route_context.filtered_df
-    filters = route_context.filters
-    filter_options = route_context.filter_options
-
-    top_kpi_state, line_trend_state = _apply_dashboard_selection_filters(filters)
-    settings_state = _load_dashboard_settings_state(settings_file)
-
-    summary = build_kpi_summary_from_dataframe(filtered_df)
+def _build_dashboard_metrics_and_charts(params: DashboardMetricsChartsParams) -> DashboardMetricsChartsState:
+    """Build summary metrics and chart payloads from filtered dashboard data."""
+    summary = build_kpi_summary_from_dataframe(params.filtered_df)
     kpi_cards = build_kpi_cards(
         KpiCardsRequest(
             summary=summary,
-            selected_keys=settings_state.selected_kpis,
-            currency_symbol=currency_symbol,
+            selected_keys=params.settings_state.selected_kpis,
+            currency_symbol=params.currency_symbol,
         )
     )
 
     top_entity_charts = _build_top_entity_charts(
         TopEntityChartsParams(
-            filtered_df=filtered_df,
-            selected_top_entity_chart_keys=settings_state.selected_top_entity_chart_keys,
-            shared_top_kpi=top_kpi_state.shared_top_kpi,
-            selected_top_kpi_adset=top_kpi_state.selected_top_kpi_adset,
-            selected_top_kpi_platform=top_kpi_state.selected_top_kpi_platform,
-            top_entity_chart_colors=settings_state.top_entity_chart_colors,
-            platform_chart_colors=settings_state.platform_chart_colors,
-            top_entity_chart_default_color=settings_state.top_entity_chart_default_color,
-            currency_symbol=currency_symbol,
+            filtered_df=params.filtered_df,
+            selected_top_entity_chart_keys=params.settings_state.selected_top_entity_chart_keys,
+            shared_top_kpi=params.top_kpi_state.shared_top_kpi,
+            selected_top_kpi_adset=params.top_kpi_state.selected_top_kpi_adset,
+            selected_top_kpi_platform=params.top_kpi_state.selected_top_kpi_platform,
+            top_entity_chart_colors=params.settings_state.top_entity_chart_colors,
+            platform_chart_colors=params.settings_state.platform_chart_colors,
+            top_entity_chart_default_color=params.settings_state.top_entity_chart_default_color,
+            currency_symbol=params.currency_symbol,
         )
     )
 
     top_kpi_options = {key: KPI_DEFINITIONS[key] for key in TOP_KPI_KEYS if key in KPI_DEFINITIONS}
     dual_axis_series = dual_axis_kpi_series(
         DualAxisKpiSeriesRequest(
-            df=filtered_df,
-            left_kpi_key=line_trend_state.selected_line_kpi_left,
-            right_kpi_key=line_trend_state.selected_line_kpi_right,
-            granularity=line_trend_state.selected_line_granularity,
+            df=params.filtered_df,
+            left_kpi_key=params.line_trend_state.selected_line_kpi_left,
+            right_kpi_key=params.line_trend_state.selected_line_kpi_right,
+            granularity=params.line_trend_state.selected_line_granularity,
         )
     )
+
+    return DashboardMetricsChartsState(
+        summary=summary,
+        kpi_cards=kpi_cards,
+        top_entity_charts=top_entity_charts,
+        top_kpi_options=top_kpi_options,
+        dual_axis_series=dual_axis_series,
+    )
+
+
+def _build_dashboard_template_payload(params: DashboardTemplatePayloadParams) -> dict[str, object]:
+    """Build the final template context from precomputed dashboard state."""
+    route_context = params.route_context
+
+    db_backend = route_context.db_backend
+    sqlite_db_file = route_context.sqlite_db_file
+    mysql_config = route_context.mysql_config
+    settings_file = route_context.settings_file
+
+    df = route_context.df
+    filtered_df = route_context.filtered_df
+    filters = route_context.filters
+    active_filter_fields = route_context.active_filter_fields
+    filter_options = route_context.filter_options
 
     branding = _build_branding(
         db_backend=db_backend,
@@ -346,27 +384,60 @@ def _prepare_dashboard_render_context(route_context: object, currency_symbol: st
 
     return _build_dashboard_render_context(
         DashboardRenderContextParams(
-            summary=summary,
-            kpi_cards=kpi_cards,
-            top_entity_charts=top_entity_charts,
-            top_kpi_options=top_kpi_options,
-            selected_top_kpi_adset=top_kpi_state.selected_top_kpi_adset,
-            selected_top_kpi_platform=top_kpi_state.selected_top_kpi_platform,
-            shared_top_kpi=top_kpi_state.shared_top_kpi,
-            selected_line_kpi_left=line_trend_state.selected_line_kpi_left,
-            selected_line_kpi_right=line_trend_state.selected_line_kpi_right,
-            selected_line_granularity=line_trend_state.selected_line_granularity,
-            dual_axis_series=dual_axis_series,
-            currency_symbol=currency_symbol,
-            platform_chart_colors=settings_state.platform_chart_colors,
+            summary=params.metrics_charts_state.summary,
+            kpi_cards=params.metrics_charts_state.kpi_cards,
+            top_entity_charts=params.metrics_charts_state.top_entity_charts,
+            top_kpi_options=params.metrics_charts_state.top_kpi_options,
+            selected_top_kpi_adset=params.top_kpi_state.selected_top_kpi_adset,
+            selected_top_kpi_platform=params.top_kpi_state.selected_top_kpi_platform,
+            shared_top_kpi=params.top_kpi_state.shared_top_kpi,
+            selected_line_kpi_left=params.line_trend_state.selected_line_kpi_left,
+            selected_line_kpi_right=params.line_trend_state.selected_line_kpi_right,
+            selected_line_granularity=params.line_trend_state.selected_line_granularity,
+            dual_axis_series=params.metrics_charts_state.dual_axis_series,
+            currency_symbol=params.currency_symbol,
+            platform_chart_colors=params.settings_state.platform_chart_colors,
             filters=filters,
             active_filter_fields=active_filter_fields,
             filter_options=filter_options,
             filtered_rows=int(filtered_df.shape[0]),
             total_rows=int(df.shape[0]),
-            selected_kpis=settings_state.selected_kpis,
+            selected_kpis=params.settings_state.selected_kpis,
             settings_file=settings_file,
             branding=branding,
+        )
+    )
+
+
+def _prepare_dashboard_render_context(route_context: object, currency_symbol: str) -> dict[str, object]:
+    """
+    Build the full template context for the dashboard page. 
+    This includes KPIs, cards, charts, filters, and branding information.
+    """
+    settings_file = route_context.settings_file
+    filtered_df = route_context.filtered_df
+    filters = route_context.filters
+
+    top_kpi_state, line_trend_state = _apply_dashboard_selection_filters(filters)
+    settings_state = _load_dashboard_settings_state(settings_file)
+    metrics_charts_state = _build_dashboard_metrics_and_charts(
+        DashboardMetricsChartsParams(
+            filtered_df=filtered_df,
+            currency_symbol=currency_symbol,
+            top_kpi_state=top_kpi_state,
+            line_trend_state=line_trend_state,
+            settings_state=settings_state,
+        )
+    )
+
+    return _build_dashboard_template_payload(
+        DashboardTemplatePayloadParams(
+            route_context=route_context,
+            top_kpi_state=top_kpi_state,
+            line_trend_state=line_trend_state,
+            settings_state=settings_state,
+            metrics_charts_state=metrics_charts_state,
+            currency_symbol=currency_symbol,
         )
     )
 
@@ -387,5 +458,5 @@ def dashboard():
 
     # Prepare the full render context for the dashboard template
     render_context = _prepare_dashboard_render_context(route_context, currency_symbol)
-    
+
     return render_template("dashboard.html", **render_context)
