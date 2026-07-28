@@ -101,3 +101,12 @@ class Config:
         os.getenv("KPI_VALUE_FONT_SIZE", "1.8rem").strip()
         or "1.8rem"
     )
+
+    DASHBOARD_LOADING_TITLE = (
+        os.getenv("DASHBOARD_LOADING_TITLE", "Loading and preparing your dashboard").strip()
+        or "Loading and preparing your dashboard"
+    )
+    DASHBOARD_LOADING_SUBTITLE = (
+        os.getenv("DASHBOARD_LOADING_SUBTITLE", "Please wait while we fetch and process the latest data.").strip()
+        or "Please wait while we fetch and process the latest data."
+    )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypedDict
 
-from flask import current_app, render_template, request
+from flask import current_app, render_template, request, url_for
 
 from backend.services.analytics_service import (
     DEFAULT_TOP_KPI_KEY,
@@ -26,6 +26,7 @@ from backend.services.settings_service import (
 
 from .utils.auth import (
     _is_auth_enabled,
+    _is_safe_next_url,
     _require_authenticated,
 )
 from .utils.common import (
@@ -439,6 +440,44 @@ def _prepare_dashboard_render_context(route_context: object, currency_symbol: st
             metrics_charts_state=metrics_charts_state,
             currency_symbol=currency_symbol,
         )
+    )
+
+
+def _resolve_dashboard_loading_target() -> str:
+    """Resolve the dashboard destination to open after the loading screen."""
+    default_target = url_for("dashboard.dashboard")
+    requested_target = _as_clean_str(request.args.get("next", ""))
+    if not requested_target or not _is_safe_next_url(requested_target):
+        return default_target
+
+    loading_path = url_for("dashboard.dashboard_loading")
+    if requested_target == loading_path:
+        return default_target
+
+    return requested_target
+
+
+@dashboard_bp.get("/loading")
+@_require_authenticated
+def dashboard_loading():
+    target_url = _resolve_dashboard_loading_target()
+    loading_title = str(
+        current_app.config.get(
+            "DASHBOARD_LOADING_TITLE",
+            "Loading and preparing your dashboard",
+        )
+    )
+    loading_subtitle = str(
+        current_app.config.get(
+            "DASHBOARD_LOADING_SUBTITLE",
+            "Please wait while we fetch and process the latest data.",
+        )
+    )
+    return render_template(
+        "loading.html",
+        target_url=target_url,
+        loading_title=loading_title,
+        loading_subtitle=loading_subtitle,
     )
 
 

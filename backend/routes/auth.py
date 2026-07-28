@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+from urllib.parse import urlsplit
 
 from flask import current_app, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
@@ -37,7 +38,14 @@ def _is_valid_password(entered_password: str) -> bool:
 def _login_success_response(next_target: str):
     session[AUTH_SESSION_KEY] = True
     session.modified = True
-    return redirect(next_target) if next_target else redirect(url_for("dashboard.dashboard"))
+
+    destination = next_target or url_for("dashboard.dashboard")
+    dashboard_path = url_for("dashboard.dashboard")
+    destination_path = urlsplit(destination).path or destination
+    if destination_path == dashboard_path:
+        destination = url_for("dashboard.dashboard_loading", next=destination)
+
+    return redirect(destination)
 
 
 def _clear_auth_session_state() -> None:
@@ -61,7 +69,7 @@ def login():
         next_target = _normalize_safe_next_target(request.args.get("next", ""))
         if next_target:
             return redirect(next_target)
-        return redirect(url_for("dashboard.dashboard"))
+        return redirect(url_for("dashboard.dashboard_loading"))
 
     next_target = _normalize_safe_next_target(request.args.get("next", ""))
     error_message = ""
