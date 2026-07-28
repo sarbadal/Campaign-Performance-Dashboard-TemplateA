@@ -19,6 +19,7 @@ A Flask + pandas web app for campaign performance reporting with configurable KP
 - Data source support:
 	- SQLite (default)
 	- MySQL
+	- Google Cloud Storage monthly CSV folder
 
 ## Tech stack
 
@@ -37,16 +38,23 @@ backend/
 	app_factory.py
 	config.py
 	routes/
+		auth.py
 		dashboard.py
+		deep_dive.py
+		utils/
+			auth.py
+			common.py
 	services/
 		analytics_service.py
 		dataframe_service.py
-		db_service.py
 		field_mapping_service.py
 		kpi_calculation_service.py
 		kpi_service.py
-		mysql_service.py
 		settings_service.py
+		data_sources/
+			gcs_source.py
+			mysql_source.py
+			sqlite_source.py
 	static/
 		css/
 		js/
@@ -54,6 +62,8 @@ backend/
 	templates/
 		dashboard.html
 		deep_dive.html
+		loading.html
+		login.html
 		partials/
 data/
 	data.csv
@@ -95,10 +105,11 @@ Important keys used by the app:
 	- `ENV_TYPE=dev|prod`
 	- `STATIC_BUCKET` (used in `prod` if `STATIC_BASE_URL` is empty)
 	- `STATIC_BASE_URL` (optional full CDN/base URL; when set in `prod`, it is preferred)
-	- `DB_BACKEND=sqlite|mysql`
+	- `DB_BACKEND=sqlite|mysql|gcs`
 	- `SQLITE_DB_FILE`
 	- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
 	- `MYSQL_TABLE`, `MYSQL_STATE_TABLE`
+	- `GCS_DATA_BUCKET`, `GCS_DATA_PREFIX`, `GCS_CREDENTIALS_JSON`
 	- `DASHBOARD_SETTINGS_FILE`
 	- `FIELD_MAPPING_FILE`
 	- `KPI_CACHE_TTL_SECONDS`
@@ -121,12 +132,22 @@ Important keys used by the app:
 Notes:
 - `LOGO_IMAGE_PATH` and `FOOTER_LOGO_IMAGE_PATH` should be paths under `backend/static/`, for example `img/ogs-logo.gif`.
 - `SHOW_FOOTER_LOGO` accepts: `true/false`, `1/0`, `yes/no`, `on/off`.
+- App config loading:
+	- `backend/config.py` uses composed dataclass sections and exposes a `Config().to_env_dict()` mapping.
+	- `backend/app_factory.py` loads config explicitly with `app.config.from_mapping(...)`.
 - Static serving mode:
 	- `ENV_TYPE=dev`: templates serve assets via Flask local static route.
-	- `ENV_TYPE=prod`: templates serve assets from GCS (`https://storage.googleapis.com/<STATIC_BUCKET>/static/...`) or from `STATIC_BASE_URL/static/...` when `STATIC_BASE_URL` is set.
+	- `ENV_TYPE=prod` (and `production`): templates serve assets from GCS (`https://storage.googleapis.com/<STATIC_BUCKET>/static/...`) or from `STATIC_BASE_URL/static/...` when `STATIC_BASE_URL` is set.
 - App sign-in mode:
 	- If either `APP_PASSWORD` or `APP_PASSWORD_HASH` is configured, users must sign in at `/login` before accessing dashboard pages.
 	- `APP_PASSWORD_HASH` should be a Werkzeug-compatible hash string.
+
+### Config architecture (refactored)
+
+Configuration is split into small dataclass sections in `backend/config.py` (for auth, static assets, backend selection, branding, and so on).
+The top-level `Config` class uses composition (not inheritance), assembles section instances, and exports all uppercase runtime keys through `to_env_dict()`.
+This keeps each config concern isolated while preserving a single config loading path for Flask.
+
 ### Dashboard settings (`settings/dashboard_settings.json`)
 
 This JSON controls visible KPIs, selected filter fields, selected top-entity charts, and chart colors.
