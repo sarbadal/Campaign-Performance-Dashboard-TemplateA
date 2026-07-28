@@ -144,7 +144,10 @@
   </div>
   {% endif %}
 
-  {% if deep_dive_columns and deep_dive_rows %}
+</section>
+
+{% if deep_dive_columns and deep_dive_rows %}
+<section class="panel" aria-label="Deep dive linked data table">
   <div class="panel-header" style="margin-top: 14px;">Deep Dive Campaign Data (Table View)</div>
   <div class="date-range" id="deep-dive-linked-meta">Showing 0 rows from expanded or selected data</div>
   <div class="filters-actions" style="margin-top: 8px;">
@@ -162,5 +165,5 @@
       <tbody id="deep-dive-linked-body"></tbody>
     </table>
   </div>
-  {% endif %}
-</section>
+  </section>
+{% endif %}
