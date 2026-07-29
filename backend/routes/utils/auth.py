@@ -11,6 +11,7 @@ from .common import _as_clean_str
 
 
 AUTH_SESSION_KEY = "app_authenticated"
+LOADING_ONCE_NEXT_SESSION_KEY = "loading_once_next_target"
 
 
 def _is_auth_enabled() -> bool:
@@ -28,6 +29,21 @@ def _is_authenticated() -> bool:
 def _is_safe_next_url(target: str) -> bool:
     parsed = urlparse(target)
     return not parsed.netloc and parsed.path.startswith("/")
+
+
+def _mark_loading_once_target(target: str) -> None:
+    session[LOADING_ONCE_NEXT_SESSION_KEY] = _as_clean_str(target)
+    session.modified = True
+
+
+def _consume_loading_once_target(target: str) -> bool:
+    expected_target = _as_clean_str(session.get(LOADING_ONCE_NEXT_SESSION_KEY, ""))
+    if not expected_target or expected_target != _as_clean_str(target):
+        return False
+
+    session.pop(LOADING_ONCE_NEXT_SESSION_KEY, None)
+    session.modified = True
+    return True
 
 
 def _build_login_redirect():

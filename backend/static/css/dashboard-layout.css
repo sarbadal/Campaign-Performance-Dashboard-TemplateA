@@ -206,6 +206,27 @@ h1 {
   display: block;
 }
 
+body.is-export-capture .top-banner {
+  position: static;
+}
+
+body.is-export-capture .container {
+  padding-top: 24px;
+}
+
+body.is-export-capture .footer {
+  position: static;
+  margin-top: 14px;
+}
+
+body.is-export-capture .panel,
+body.is-export-capture .drill-tree,
+body.is-export-capture .drill-node,
+body.is-export-capture .drill-children,
+body.is-export-capture .drill-leaf-table-wrap {
+  overflow: visible;
+}
+
 @media (min-width: 880px) {
   .kpi-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));

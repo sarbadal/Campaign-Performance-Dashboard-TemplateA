@@ -135,6 +135,9 @@ Notes:
 - App config loading:
 	- `backend/config.py` uses composed dataclass sections and exposes a `Config().to_env_dict()` mapping.
 	- `backend/app_factory.py` loads config explicitly with `app.config.from_mapping(...)`.
+- Loading page behavior:
+	- Refreshing or directly opening `/` or `/deep-dive` goes through `/loading` first.
+	- Navigating between Dashboard and Deep Dive in-app does not show the loading page.
 - Static serving mode:
 	- `ENV_TYPE=dev`: templates serve assets via Flask local static route.
 	- `ENV_TYPE=prod` (and `production`): templates serve assets from GCS (`https://storage.googleapis.com/<STATIC_BUCKET>/static/...`) or from `STATIC_BASE_URL/static/...` when `STATIC_BASE_URL` is set.

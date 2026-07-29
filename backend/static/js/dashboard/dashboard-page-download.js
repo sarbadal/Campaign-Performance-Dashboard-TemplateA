@@ -1,5 +1,6 @@
 (() => {
   const rootSelector = 'main.container';
+  const exportModeClass = 'is-export-capture';
 
   const makeTimestamp = () => (
     new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '_')
@@ -32,15 +33,35 @@
       throw new Error('html2canvas is not available.');
     }
 
-    return window.html2canvas(target, {
-      backgroundColor: '#f7f8f4',
-      scale: 2,
-      useCORS: true,
-      scrollX: 0,
-      scrollY: -window.scrollY,
-      windowWidth: document.documentElement.scrollWidth,
-      windowHeight: document.documentElement.scrollHeight,
+    const waitForLayout = () => new Promise((resolve) => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(resolve);
+      });
     });
+
+    const originalScrollX = window.scrollX;
+    const originalScrollY = window.scrollY;
+    const root = document.documentElement;
+    const body = document.body;
+
+    body.classList.add(exportModeClass);
+    window.scrollTo(0, 0);
+
+    try {
+      await waitForLayout();
+      return await window.html2canvas(target, {
+        backgroundColor: '#f7f8f4',
+        scale: 2,
+        useCORS: true,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: Math.max(root.clientWidth, target.scrollWidth),
+        windowHeight: Math.max(root.clientHeight, target.scrollHeight),
+      });
+    } finally {
+      body.classList.remove(exportModeClass);
+      window.scrollTo(originalScrollX, originalScrollY);
+    }
   };
 
   const downloadDataUrl = (dataUrl, filename) => {

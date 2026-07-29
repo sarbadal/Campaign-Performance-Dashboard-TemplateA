@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TypedDict
+from urllib.parse import urlsplit
 
-from flask import current_app, render_template, request, url_for
+from flask import current_app, redirect, render_template, request, url_for
 
 from backend.services.analytics_service import (
     DEFAULT_TOP_KPI_KEY,
@@ -25,7 +26,9 @@ from backend.services.settings_service import (
 )
 
 from .utils.auth import (
+    _consume_loading_once_target,
     _is_auth_enabled,
+    _mark_loading_once_target,
     _is_safe_next_url,
     _require_authenticated,
 )
@@ -461,6 +464,7 @@ def _resolve_dashboard_loading_target() -> str:
 @_require_authenticated
 def dashboard_loading():
     target_url = _resolve_dashboard_loading_target()
+    _mark_loading_once_target(target_url)
     loading_title = str(
         current_app.config.get(
             "DASHBOARD_LOADING_TITLE",
@@ -489,6 +493,14 @@ def dashboard():
     This route gathers all necessary data, applies filters, and prepares the 
     context for rendering the dashboard template.
     """
+    request_target = request.full_path.rstrip("?") if request.query_string else request.path
+    deep_dive_path = url_for("dashboard.deep_dive")
+    referrer_path = urlsplit(request.referrer).path if request.referrer else ""
+    is_cross_page_navigation = referrer_path == deep_dive_path
+
+    if not is_cross_page_navigation and not _consume_loading_once_target(request_target):
+        return redirect(url_for("dashboard.dashboard_loading", next=request_target))
+
     # Build the route context, including filters and data frame
     route_context = _build_route_context(include_filters=True)
 

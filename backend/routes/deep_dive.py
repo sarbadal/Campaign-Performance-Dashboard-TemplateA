@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from io import StringIO
+from urllib.parse import urlsplit
 
 import pandas as pd
-from flask import Response, current_app, render_template, request
+from flask import Response, current_app, redirect, render_template, request, url_for
 
 from backend.services.kpi_calculation_service import build_kpi_summary_from_dataframe
 from backend.services.settings_service import (
@@ -14,6 +15,7 @@ from backend.services.settings_service import (
 )
 
 from .utils.auth import (
+    _consume_loading_once_target,
     _is_auth_enabled,
     _require_authenticated,
 )
@@ -34,6 +36,14 @@ from .utils.common import (
 @dashboard_bp.get("/deep-dive")
 @_require_authenticated
 def deep_dive():
+    request_target = request.full_path.rstrip("?") if request.query_string else request.path
+    dashboard_path = url_for("dashboard.dashboard")
+    referrer_path = urlsplit(request.referrer).path if request.referrer else ""
+    is_cross_page_navigation = referrer_path == dashboard_path
+
+    if not is_cross_page_navigation and not _consume_loading_once_target(request_target):
+        return redirect(url_for("dashboard.dashboard_loading", next=request_target))
+
     route_context = _build_route_context(include_filters=True)
     db_backend = route_context.db_backend
     sqlite_db_file = route_context.sqlite_db_file
